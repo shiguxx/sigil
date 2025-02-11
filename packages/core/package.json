@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "libctr": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "@types/node": "catalog:",
+    "@libctr/tsconfig": "catalog:"
+  },
+  "name": "@sigil/core",
+  "type": "module",
+  "version": "0.0.0"
+}

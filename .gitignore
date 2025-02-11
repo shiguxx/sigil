@@ -1,0 +1,4 @@
+**/dist
+**/*.grm
+**/*.ng.*
+**/node_modules

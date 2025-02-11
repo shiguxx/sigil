@@ -1,0 +1,5 @@
+{
+  "printWidth": 85,
+  "trailingComma": "none",
+  "$schema": "https://json.schemastore.org/prettierrc"
+}
