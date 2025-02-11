@@ -2,7 +2,7 @@ import { SigilKSMImport } from "#ksm/ksm-import";
 import { SigilKSMContext } from "#ksm/ksm-context";
 import { SigilKSMFunction } from "#ksm/ksm-function";
 import { SigilKSMInstruction } from "#ksm/ksm-instruction";
-import { CTRBinarySerializable, CTRError, CTRMemory } from "libctr";
+import { CTRBinarySerializable, CTRMemory } from "libctr";
 import { SigilKSMGetArgsInstruction } from "#ksm/ksm-get-args-instruction";
 import { SigilKSMVariable, SigilKSMVariableScope } from "#ksm/ksm-variable";
 import { SigilKSMSetInstruction } from "#ksm/ksm-set-instruction";
@@ -34,13 +34,13 @@ class SigilKSM extends CTRBinarySerializable<never> {
   private _section6: number;
   private _section7: number;
 
+  public readonly unknown0: number[];
+  public readonly unknown1: number[];
+  public readonly unknown2: number[];
+
   public readonly imports: Map<number, SigilKSMImport>;
   public readonly functions: Map<number, SigilKSMFunction>;
   public readonly variables: Map<number, SigilKSMVariable>;
-
-  private readonly _unknown0: number[];
-  private readonly _unknown1: number[];
-  private readonly _unknown2: number[];
 
   public constructor() {
     super();
@@ -58,9 +58,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._section6 = 0;
     this._section7 = 0;
 
-    this._unknown0 = [];
-    this._unknown1 = [];
-    this._unknown2 = [];
+    this.unknown0 = [];
+    this.unknown1 = [];
+    this.unknown2 = [];
   }
 
   public buildInstruction(
@@ -232,11 +232,11 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection0(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._section0 = this._buildUnknownSection(buffer, this._unknown0, ctx);
+    this._section0 = this._buildUnknownSection(buffer, this.unknown0, ctx);
   }
 
   private _parseSection0(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._parseUnknownSection(buffer, this._unknown0, this._section1, ctx);
+    this._parseUnknownSection(buffer, this.unknown0, this._section1, ctx);
   }
 
   private _buildSection1(buffer: CTRMemory, ctx: SigilKSMContext): void {
@@ -269,11 +269,11 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._section3 = this._buildUnknownSection(buffer, this._unknown1, ctx);
+    this._section3 = this._buildUnknownSection(buffer, this.unknown1, ctx);
   }
 
   private _parseSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._parseUnknownSection(buffer, this._unknown1, this._section4, ctx);
+    this._parseUnknownSection(buffer, this.unknown1, this._section4, ctx);
   }
 
   private _buildSection4(buffer: CTRMemory, ctx: SigilKSMContext): void {
@@ -324,7 +324,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
       }
     }
 
-    this._buildUnknownSection(buffer, this._unknown2, ctx);
+    this._buildUnknownSection(buffer, this.unknown2, ctx);
 
     const diff = buffer.offset - ctx.codeOffset;
     buffer.seek(this._section7).u32(diff / 4);
@@ -349,7 +349,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
     }
 
     // capture unknown remaining bytes...
-    this._parseUnknownSection(buffer, this._unknown2, buffer.length, ctx);
+    this._parseUnknownSection(buffer, this.unknown2, buffer.length, ctx);
 
     if (buffer.offset - ctx.codeOffset !== count) {
       throw "ksm.err_malformed_file";
