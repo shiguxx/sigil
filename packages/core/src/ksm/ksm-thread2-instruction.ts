@@ -74,18 +74,19 @@ class SigilKSMThread2Instruction extends SigilKSMInstruction {
     }
 
     if (this.callee instanceof SigilKSMFunction) {
-      const absoluteCodeStart =
-        ctx.codeOffset +
+      const thisInstructionSize =
         CTRMemory.U32_SIZE + // thread 2 opcode
         CTRMemory.U32_SIZE + // callee id
         CTRMemory.U32_SIZE + // give end
         CTRMemory.U32_SIZE + // take end
-        this.caller.codeStart + // relative offset to global code start
-        this.callee.codeStart + // relative offset to caller's code start
         this.give.length * CTRMemory.U32_SIZE + // give
         this.take.length * CTRMemory.U32_SIZE; // take
 
-      // console.log("OWO", absoluteCodeStart, buffer.offset);
+      const absoluteCodeStart =
+        ctx.codeOffset +
+        thisInstructionSize +
+        this.caller.codeStart + // relative offset to global code start
+        this.callee.codeStart; // relative offset to caller's code start
 
       if (buffer.offset !== absoluteCodeStart) {
         throw "ksm.err_malformed_file";
@@ -97,7 +98,7 @@ class SigilKSMThread2Instruction extends SigilKSMInstruction {
         buffer,
         ctx,
         this.callee,
-        absoluteCodeStart - ctx.codeOffset
+        this.callee.codeEnd - this.callee.codeStart - thisInstructionSize
       );
     }
   }
@@ -105,9 +106,9 @@ class SigilKSMThread2Instruction extends SigilKSMInstruction {
   protected override _sizeof(): number {
     let sizeof = 0;
 
-    sizeof += CTRMemory.U32_SIZE; // callee id
     sizeof += CTRMemory.U32_SIZE * this.give.length; // give
     sizeof += CTRMemory.U32_SIZE * this.take.length; // take
+    sizeof += 3 * CTRMemory.U32_SIZE; // callee id, give end, take end
 
     if (this.callee instanceof SigilKSMFunction) {
       sizeof += this.callee.codesize;

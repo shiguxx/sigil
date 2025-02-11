@@ -138,11 +138,12 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer: CTRMemory,
     ctx: SigilKSMContext,
     fn: SigilKSMFunction,
-    end: number
+    size: number
   ): void {
     const pushed = ctx.push(fn);
+    const start = buffer.offset;
 
-    while (buffer.offset < ctx.codeOffset + end) {
+    while (buffer.offset - start < size) {
       const instruction = this.parseInstruction(buffer, pushed);
 
       if (instruction instanceof SigilKSMThread2Instruction) {
@@ -156,6 +157,88 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   protected override _build(buffer: CTRMemory): void {
+    /*const threads = new Map<SigilKSMFunction, SigilKSMFunction>();
+
+    for (const fn of this.functions.values()) {
+      for (const instruction of fn.instructions) {
+        if (
+          instruction instanceof SigilKSMThread2Instruction &&
+          instruction.callee instanceof SigilKSMFunction
+        ) {
+          threads.set(instruction.callee, instruction.caller);
+        }
+      }
+    }
+
+    let codeOffset = 0;
+
+    for (const fn of this.functions.values()) {
+      if (threads.has(fn)) {
+        continue;
+      }
+
+      fn.codeStart = codeOffset;
+      fn.codeEnd = codeOffset + fn.codesize;
+      codeOffset += fn.codesize;
+    }
+
+    for (const callee of this.functions.values()) {
+      const caller = threads.get(callee);
+
+      if (caller === undefined) {
+        continue;
+      }
+
+      callee.codeStart = 0;
+
+      for (const instruction of caller.instructions) {
+        callee.codeStart += instruction.sizeof;
+
+        if (
+          instruction instanceof SigilKSMThread2Instruction &&
+          instruction.callee === callee
+        ) {
+          callee.codeStart += instruction.sizeof - callee.codesize;
+          break;
+        }
+      }
+
+      callee.codeEnd = callee.codeStart + callee.codesize;
+    }*/
+
+    let codeOffset = 0;
+    const seen = new Set<SigilKSMFunction>();
+
+    for (const fn of Array.from(this.functions.values()).reverse()) {
+      if (seen.has(fn)) {
+        continue;
+      }
+
+      seen.add(fn);
+      fn.codeStart = codeOffset;
+
+      for (const instruction of fn.instructions) {
+        if (
+          instruction instanceof SigilKSMThread2Instruction &&
+          instruction.callee instanceof SigilKSMFunction
+        ) {
+          instruction.callee.codeStart = codeOffset;
+
+          instruction.callee.codeEnd =
+            instruction.callee.codeStart + instruction.sizeof + CTRMemory.U32_SIZE;
+
+          codeOffset = instruction.callee.codeEnd;
+
+          seen.add(instruction.callee);
+          continue;
+        }
+
+        codeOffset += instruction.sizeof + CTRMemory.U32_SIZE;
+      }
+
+      fn.codeEnd = codeOffset;
+    }
+
     const start = buffer.offset;
     const ctx = new SigilKSMContext(this);
 
@@ -240,14 +323,11 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection1(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    let codeOffset = 0;
-
     this._section1 = buffer.offset;
     buffer.u32(this.functions.size);
 
     for (const fn of this.functions.values()) {
       fn.build(buffer, ctx);
-      codeOffset += fn.codesize;
     }
   }
 
@@ -345,7 +425,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
         throw "ksm.err_malformed_file";
       }
 
-      this.parseFunctionCode(buffer, ctx, fn, fn.codeEnd);
+      this.parseFunctionCode(buffer, ctx, fn, fn.codeEnd - fn.codeStart);
     }
 
     // capture unknown remaining bytes...
