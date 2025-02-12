@@ -1,4 +1,4 @@
-import type { CTRMemory } from "libctr";
+import { CTRMemory } from "libctr";
 import { SigilKSMInstruction } from "#ksm/ksm-instruction";
 import type { SigilKSMContext, SigilKSMExpression } from "#ksm/ksm-context";
 import { SigilKSMVariable } from "#ksm/ksm-variable";
@@ -25,7 +25,7 @@ class SigilKSMWaitInstruction extends SigilKSMInstruction {
 
   protected _build(buffer: CTRMemory, ctx: SigilKSMContext): void {
     if (this.time instanceof SigilKSMVariable) {
-      this.time.build(buffer, ctx);
+      buffer.u32(this.time.id);
       return;
     }
 
@@ -42,7 +42,7 @@ class SigilKSMWaitInstruction extends SigilKSMInstruction {
   }
 
   protected override _sizeof(): number {
-    return Array.isArray(this.time) ? exprsizeof(this.time) : this.time.sizeof;
+    return Array.isArray(this.time) ? exprsizeof(this.time) : CTRMemory.U32_SIZE;
   }
 }
 

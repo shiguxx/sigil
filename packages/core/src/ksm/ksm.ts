@@ -365,11 +365,14 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection5(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._section5 = buffer.offset;
-    buffer.u32(this.imports.size);
+    const imports = Array.from(this.imports.values());
+    imports.sort((a, b) => b.id - a.id);
 
-    for (const _import of this.imports.values()) {
-      _import.build(buffer, ctx);
+    this._section5 = buffer.offset;
+    buffer.u32(imports.length);
+
+    for (const im of imports) {
+      im.build(buffer, ctx);
     }
   }
 
@@ -443,9 +446,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
   ): number {
     const offset = buffer.offset;
 
-    const variables = Array.from(this.variables.values()).filter(
-      (v) => v.scope === scope
-    );
+    const variables = Array.from(this.variables.values())
+      .filter((v) => v.scope === scope)
+      .sort((a, b) => b.id - a.id);
 
     buffer.u32(variables.length);
 
