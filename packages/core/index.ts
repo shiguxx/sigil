@@ -3,25 +3,59 @@ import assert from "node:assert";
 import fs from "node:fs/promises";
 import process from "node:process";
 import { SigilKSM } from "#ksm/ksm";
-import type { SigilKSMCommand } from "#ksm/ksm-command";
-import { KSMGetArgsInstruction } from "#ksm/ksm-get-args-instruction";
-import { KSMFunction, SigilKSMFunction } from "#ksm/ksm-function";
 import { KSMVariable, SigilKSMVariable } from "#ksm/ksm-variable";
-import { KSMCallInstruction } from "#ksm/ksm-call-instruction";
+import type { SigilKSMCommand } from "#ksm/ksm-command";
+import {
+  KSMGetArgsInstruction,
+  SigilKSMGetArgsInstruction
+} from "#ksm/ksm-get-args-instruction";
+import { KSMFunction, SigilKSMFunction } from "#ksm/ksm-function";
+import {
+  KSMCallInstruction,
+  SigilKSMCallInstruction
+} from "#ksm/ksm-call-instruction";
 import { SigilKSMExpression } from "#ksm/ksm-context";
-import { KSMReturnInstruction } from "#ksm/ksm-return-instruction";
-import { KSMSetInstruction } from "#ksm/ksm-set-instruction";
-import { KSMIfInstruction } from "#ksm/ksm-if-instruction";
-import { KSMNoOpInstruction } from "#ksm/ksm-noop-cmd";
-import { KSMEndIfInstruction } from "#ksm/ksm-end-if-instruction";
-import { KSMElseIfInstruction } from "#ksm/ksm-else-if-instruction";
-import { KSMElseInstruction } from "#ksm/ksm-else-instruction";
-import { KSMWaitInstruction } from "#ksm/ksm-wait-instruction";
-import { KSMGotoInstruction } from "#ksm/ksm-goto-instruction";
-import { KSMThread2Instruction } from "#ksm/ksm-thread2-instruction";
-import { KSMLabelInstruction } from "#ksm/ksm-label-instruction";
-import { KSMImport } from "#ksm/ksm-import";
+import {
+  KSMReturnInstruction,
+  SigilKSMReturnInstruction
+} from "#ksm/ksm-return-instruction";
+import { KSMSetInstruction, SigilKSMSetInstruction } from "#ksm/ksm-set-instruction";
+import { KSMIfInstruction, SigilKSMIfInstruction } from "#ksm/ksm-if-instruction";
+import { KSMNoOpInstruction, SigilKSMNoOpInstruction } from "#ksm/ksm-noop-cmd";
+import {
+  KSMEndIfInstruction,
+  SigilKSMEndIfInstruction
+} from "#ksm/ksm-end-if-instruction";
+import {
+  KSMElseIfInstruction,
+  SigilKSMElseIfInstruction
+} from "#ksm/ksm-else-if-instruction";
+import {
+  KSMElseInstruction,
+  SigilKSMElseInstruction
+} from "#ksm/ksm-else-instruction";
+import {
+  KSMWaitInstruction,
+  SigilKSMWaitInstruction,
+  SigilKSMWaitTime
+} from "#ksm/ksm-wait-instruction";
+import {
+  KSMGotoInstruction,
+  SigilKSMGotoInstruction
+} from "#ksm/ksm-goto-instruction";
+import {
+  KSMThread2Instruction,
+  SigilKSMThread2Instruction
+} from "#ksm/ksm-thread2-instruction";
+import {
+  KSMLabelInstruction,
+  SigilKSMLabelInstruction
+} from "#ksm/ksm-label-instruction";
+import { KSMImport, SigilKSMImport } from "#ksm/ksm-import";
 import { SigilKSMIntrinsic } from "#ksm/ksm-intrinsic";
+import { SigilKSMLabel } from "#ksm/ksm-label";
+import { SigilKSMInstruction } from "#ksm/ksm-instruction";
+import { KSMWaitMSInstruction, SigilKSMWaitMSInstruction } from "#ksm/ksm-wait-ms-instruction";
 
 const IKSMIntrisic = z.enum([
   "+",
@@ -41,10 +75,12 @@ const IKSMIntrisic = z.enum([
   ")"
 ]);
 
+// @ts-expect-error
 const IKSMExpression = z.lazy(() =>
   z.union([IKSMIntrisic, IKSMCallInstruction, z.string()]).array()
 );
 
+// @ts-expect-error
 const IKSMCallInstruction = z.object({
   type: z.literal("KSMCall"),
   callee: z.string(),
@@ -88,6 +124,10 @@ const IKSMInstruction = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("KSMWait"),
+    time: z.string().or(IKSMExpression)
+  }),
+  z.object({
+    type: z.literal("KSMWaitMS"),
     time: z.string().or(IKSMExpression)
   }),
   z.object({
@@ -145,12 +185,13 @@ const IKSMFunction = z.object({
   unknown2: z.number().int(),
   labels: IKSMLabel.array(),
   variables: IKSMVariable.array(),
-  code: IKSMInstruction.array()
+  instructions: IKSMInstruction.array()
 });
 
 type IKSMFunction = z.infer<typeof IKSMFunction>;
 
 const IKSM = z.object({
+  type: z.literal("KSM"),
   imports: IKSMImport.array(),
   functions: IKSMFunction.array(),
   variables: IKSMVariable.array(),
@@ -159,23 +200,29 @@ const IKSM = z.object({
   unknown2: z.number().int().array()
 });
 
+type IKSM = z.infer<typeof IKSM>;
+
 async function main(): Promise<void> {
-  const action = process.argv.at(2);
-  const filepath = process.argv.at(3);
+  try {
+    const action = process.argv.at(2);
+    const filepath = process.argv.at(3);
 
-  if (action === undefined) {
-    throw new Error("missing action");
-  } else if (filepath === undefined) {
-    throw new Error("missing filepath");
-  } else if (action === "-c") {
-    // await compile(filepath);
-  } else if (action === "-d") {
-    await decompile(filepath);
-  } else {
-    throw new Error(`invalid action '${action}'`);
+    if (action === undefined) {
+      throw new Error("missing action");
+    } else if (filepath === undefined) {
+      throw new Error("missing filepath");
+    } else if (action === "-c") {
+      await compile(filepath);
+    } else if (action === "-d") {
+      await decompile(filepath);
+    } else {
+      throw new Error(`invalid action '${action}'`);
+    }
+
+    console.log("Done...");
+  } catch (err) {
+    console.error(err);
   }
-
-  console.log("Done...");
 }
 
 function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unknown {
@@ -247,8 +294,8 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
 
     for (const fn of symbol.functions.values()) {
       const labels: IKSMLabel[] = [];
-      const code: IKSMInstruction[] = [];
       const variables: IKSMVariable[] = [];
+      const instructions: IKSMInstruction[] = [];
 
       for (const la of fn.labels.values()) {
         labels.push({ ...la, address: la.code });
@@ -259,17 +306,18 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
       }
 
       for (const instruction of fn.instructions) {
-        code.push(<IKSMInstruction>_export(instruction));
+        instructions.push(<IKSMInstruction>_export(instruction));
       }
 
       assert(fn.name !== null);
-      functions.push({ ...fn, code, labels, variables, name: fn.name });
+      functions.push({ ...fn, instructions, labels, variables, name: fn.name });
     }
 
     for (const va of symbol.variables.values()) {
       variables.push(va);
     }
 
+    object.type = "KSM";
     object.imports = imports;
     object.functions = functions;
     object.variables = variables;
@@ -379,6 +427,13 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     return object;
   }
 
+  if (symbol instanceof KSMWaitMSInstruction) {
+    object.type = "KSMWaitMS";
+    object.time = _export(symbol.time);
+
+    return object;
+  }
+
   if (symbol instanceof KSMWaitInstruction) {
     object.type = "KSMWait";
     object.time = _export(symbol.time);
@@ -390,7 +445,312 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
   throw new Error("unknown");
 }
 
-// async function compile(path: string): Promise<void> {}
+function _import(
+  fn: null | SigilKSMFunction,
+  script: null | SigilKSM,
+  symbol: IKSM | IKSMInstruction
+): SigilKSM | SigilKSMCommand | SigilKSMExpression {
+  if (symbol.type === "KSM") {
+    const object = new SigilKSM();
+
+    for (const u of symbol.unknown0) {
+      object.unknown0.push(u);
+    }
+
+    for (const u of symbol.unknown1) {
+      object.unknown1.push(u);
+    }
+
+    for (const u of symbol.unknown2) {
+      object.unknown2.push(u);
+    }
+
+    for (const im of symbol.imports) {
+      const _import = new SigilKSMImport();
+      Object.assign(_import, im);
+
+      object.imports.set(_import.id, _import);
+    }
+
+    for (const va of symbol.variables) {
+      const _variable = new SigilKSMVariable();
+      Object.assign(_variable, va);
+
+      object.variables.set(_variable.id, _variable);
+    }
+
+    for (const fn of symbol.functions) {
+      const _function = new SigilKSMFunction();
+
+      _function.id = fn.id;
+      _function.name = fn.name;
+      _function.public = fn.public;
+      _function.unknown0 = fn.unknown0;
+      _function.unknown1 = fn.unknown1;
+      _function.unknown2 = fn.unknown2;
+      _function.threadfn = fn.threadfn;
+
+      object.functions.set(_function.id, _function);
+
+      for (const la of fn.labels) {
+        const _label = new SigilKSMLabel();
+
+        _label.id = la.id;
+        _label.code = la.address;
+
+        _function.labels.set(_label.id, _label);
+      }
+
+      for (const va of fn.variables) {
+        const _variable = new SigilKSMVariable();
+        Object.assign(_variable, va);
+
+        _function.variables.set(_variable.id, _variable);
+      }
+    }
+
+    for (const fn of symbol.functions) {
+      const _function = object.functions.get(fn.id);
+      assert(_function !== undefined);
+
+      for (const instruction of fn.instructions) {
+        _function.instructions.push(
+          <SigilKSMInstruction>_import(_function, object, instruction)
+        );
+      }
+    }
+
+    return object;
+  }
+
+  assert(script !== null);
+
+  if (symbol.type === "KSMReturn") {
+    return new SigilKSMReturnInstruction();
+  }
+
+  if (symbol.type === "KSMGetArgs") {
+    const object = new SigilKSMGetArgsInstruction();
+    object.fn = <SigilKSMFunction>_resolve(null, script, symbol.fn);
+
+    for (const a of symbol.arguments) {
+      object.arguments.push(<SigilKSMVariable>_resolve(object.fn, script, a));
+    }
+
+    return object;
+  }
+
+  if (symbol.type === "KSMCall") {
+    const object = new SigilKSMCallInstruction();
+    object.callee = <SigilKSMFunction>_resolve(null, script, symbol.callee);
+
+    for (const a of symbol.arguments) {
+      if (typeof a === "string") {
+        object.arguments.push(<SigilKSMVariable>_resolve(object.callee, script, a));
+        continue;
+      }
+
+      object.arguments.push(<SigilKSMExpression>_import(fn, script, a));
+    }
+
+    return object;
+  }
+
+  if (symbol.type === "KSMElse") {
+    const object = new SigilKSMElseInstruction();
+    object.unknown0 = symbol.unknown0;
+    return object;
+  }
+
+  if (symbol.type === "KSMIf") {
+    const object = new SigilKSMIfInstruction();
+
+    object.unknown0 = symbol.unknown0;
+    object.unknown1 = symbol.unknown1;
+    object.unknown2 = symbol.unknown2;
+    object.condition = <SigilKSMExpression>_import(fn, script, symbol.condition);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMElseIf") {
+    const object = new SigilKSMElseIfInstruction();
+
+    object.unknown0 = symbol.unknown0;
+    object.unknown1 = symbol.unknown1;
+    object.unknown2 = symbol.unknown2;
+    object.unknown3 = symbol.unknown3;
+    object.unknown4 = symbol.unknown4;
+    object.condition = <SigilKSMExpression>_import(fn, script, symbol.condition);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMGoto") {
+    const object = new SigilKSMGotoInstruction();
+    object.label = <SigilKSMLabel>_resolve(fn, script, symbol.label);
+    return object;
+  }
+
+  if (symbol.type === "KSMThread2") {
+    const object = new SigilKSMThread2Instruction();
+    object.callee = <SigilKSMFunction>_resolve(fn, script, symbol.callee);
+
+    for (const g of symbol.give) {
+      object.give.push(
+        <SigilKSMVariable>(
+          _resolve(
+            object.callee instanceof KSMFunction ? object.callee : fn,
+            script,
+            g
+          )
+        )
+      );
+    }
+
+    for (const t of symbol.take) {
+      object.take.push(t);
+    }
+
+    return object;
+  }
+
+  if (symbol.type === "KSMLabelPoint") {
+    return new SigilKSMLabelInstruction();
+  }
+
+  if (symbol.type === "KSMSet") {
+    const object = new SigilKSMSetInstruction();
+    object.assignee = <SigilKSMVariable>_resolve(fn, script, symbol.assignee);
+
+    object.value = <SigilKSMExpression | SigilKSMVariable>(
+      _import(fn, script, symbol.value)
+    );
+
+    return object;
+  }
+
+  if (symbol.type === "KSMNone") {
+    return new SigilKSMNoOpInstruction();
+  }
+
+  if (symbol.type === "KSMEndIf") {
+    return new SigilKSMEndIfInstruction();
+  }
+
+  if (symbol.type === "KSMWait") {
+    const object = new SigilKSMWaitInstruction();
+    object.time = <SigilKSMWaitTime>_import(fn, script, symbol.time);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMWaitMS") {
+    const object = new SigilKSMWaitMSInstruction();
+    object.time = <SigilKSMWaitTime>_import(fn, script, symbol.time);
+
+    return object;
+  }
+
+  if (Array.isArray(symbol)) {
+    const expr = [];
+
+    for (const el of symbol) {
+      if (el === "+") {
+        expr.push(new SigilKSMIntrinsic("add"));
+      } else if (el === "-") {
+        expr.push(new SigilKSMIntrinsic("sub"));
+      } else if (el === "&&") {
+        expr.push(new SigilKSMIntrinsic("and"));
+      } else if (el === "/") {
+        expr.push(new SigilKSMIntrinsic("div"));
+      } else if (el === "==") {
+        expr.push(new SigilKSMIntrinsic("eq"));
+      } else if (el === ">") {
+        expr.push(new SigilKSMIntrinsic("gt"));
+      } else if (el === ">=") {
+        expr.push(new SigilKSMIntrinsic("gte"));
+      } else if (el === "(") {
+        expr.push(new SigilKSMIntrinsic("left_paren"));
+      } else if (el === "<") {
+        expr.push(new SigilKSMIntrinsic("lt"));
+      } else if (el === "<=") {
+        expr.push(new SigilKSMIntrinsic("lte"));
+      } else if (el === "*") {
+        expr.push(new SigilKSMIntrinsic("mul"));
+      } else if (el === "!=") {
+        expr.push(new SigilKSMIntrinsic("neq"));
+      } else if (el === "next") {
+        expr.push(new SigilKSMIntrinsic("next_function"));
+      } else if (el === "||") {
+        expr.push(new SigilKSMIntrinsic("or"));
+      } else if (el === ")") {
+        expr.push(new SigilKSMIntrinsic("right_paren"));
+      } else {
+        expr.push(_resolve(fn, script, el));
+      }
+    }
+
+    return <SigilKSMExpression>expr;
+  }
+
+  console.error(symbol);
+  throw new Error("unknown");
+}
+
+function _resolve(
+  fn: null | SigilKSMFunction,
+  script: SigilKSM,
+  ref: string
+): SigilKSMLabel | SigilKSMImport | SigilKSMVariable | SigilKSMFunction {
+  const prop = ref.startsWith("ref:") ? "id" : "name";
+  const id = ref.startsWith("ref:") ? Number.parseInt(ref.replace("ref:", "")) : ref;
+
+  for (const im of script.imports.values()) {
+    if (im[prop] === id) {
+      return im;
+    }
+  }
+
+  for (const fn of script.functions.values()) {
+    if (fn[prop] === id) {
+      return fn;
+    }
+  }
+
+  if (fn !== null) {
+    for (const la of fn.labels.values()) {
+      if (la[prop] === id) {
+        return la;
+      }
+    }
+
+    for (const va of fn.variables.values()) {
+      if (va[prop] === id) {
+        return va;
+      }
+    }
+  }
+
+  for (const va of script.variables.values()) {
+    if (va[prop] === id) {
+      return va;
+    }
+  }
+
+  throw "unknown ref " + ref;
+}
+
+async function compile(filepath: string): Promise<void> {
+  const script = _import(
+    null,
+    null,
+    IKSM.parse(JSON.parse(await fs.readFile(filepath, "utf8")))
+  );
+
+  assert(script instanceof SigilKSM);
+  await fs.writeFile(filepath.replace(".json", ".bin"), script.build().steal());
+}
 
 async function decompile(filepath: string): Promise<void> {
   const script = _export(new SigilKSM().parse(await fs.readFile(filepath)));
