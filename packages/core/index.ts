@@ -55,7 +55,12 @@ import { KSMImport, SigilKSMImport } from "#ksm/ksm-import";
 import { SigilKSMIntrinsic } from "#ksm/ksm-intrinsic";
 import { SigilKSMLabel } from "#ksm/ksm-label";
 import { SigilKSMInstruction } from "#ksm/ksm-instruction";
-import { KSMWaitMSInstruction, SigilKSMWaitMSInstruction } from "#ksm/ksm-wait-ms-instruction";
+import {
+  KSMWaitMSInstruction,
+  SigilKSMWaitMSInstruction
+} from "#ksm/ksm-wait-ms-instruction";
+import { KSMUnsure0Instruction, SigilKSMUnsure0Instruction } from "#ksm/ksm-unsure0";
+import { KSMUnsure1Instruction, SigilKSMUnsure1Instruction } from "#ksm/ksm-unsure1";
 
 const IKSMIntrisic = z.enum([
   "+",
@@ -95,7 +100,14 @@ const IKSMInstruction = z.discriminatedUnion("type", [
   }),
   IKSMCallInstruction,
   z.object({
-    type: z.enum(["KSMReturn", "KSMNone", "KSMEndIf", "KSMLabelPoint"])
+    type: z.enum([
+      "KSMReturn",
+      "KSMNone",
+      "KSMEndIf",
+      "KSMLabelPoint",
+      "KSMUnsure0",
+      "KSMUnsure1"
+    ])
   }),
   z.object({
     type: z.literal("KSMSet"),
@@ -191,6 +203,7 @@ const IKSMFunction = z.object({
 type IKSMFunction = z.infer<typeof IKSMFunction>;
 
 const IKSM = z.object({
+  global: IKSMInstruction.array(),
   type: z.literal("KSM"),
   imports: IKSMImport.array(),
   functions: IKSMFunction.array(),
@@ -286,10 +299,15 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     const imports: IKSMImport[] = [];
     const functions: IKSMFunction[] = [];
     const variables: IKSMVariable[] = [];
+    const global: IKSMInstruction[] = [];
 
     for (const im of symbol.imports.values()) {
       assert(im.name !== null);
       imports.push({ ...im, name: im.name });
+    }
+
+    for (const instruction of symbol.global.instructions) {
+      global.push(<IKSMInstruction>_export(instruction));
     }
 
     for (const fn of symbol.functions.values()) {
@@ -318,6 +336,7 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     }
 
     object.type = "KSM";
+    object.global = global;
     object.imports = imports;
     object.functions = functions;
     object.variables = variables;
@@ -364,6 +383,16 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
 
   if (symbol instanceof KSMReturnInstruction) {
     object.type = "KSMReturn";
+    return object;
+  }
+
+  if (symbol instanceof KSMUnsure0Instruction) {
+    object.type = "KSMUnsure0";
+    return object;
+  }
+
+  if (symbol instanceof KSMUnsure1Instruction) {
+    object.type = "KSMUnsure1";
     return object;
   }
 
@@ -479,6 +508,12 @@ function _import(
       object.variables.set(_variable.id, _variable);
     }
 
+    for (const instruction of symbol.global) {
+      object.global.instructions.push(
+        <SigilKSMInstruction>_import(object.global, object, instruction)
+      );
+    }
+
     for (const fn of symbol.functions) {
       const _function = new SigilKSMFunction();
 
@@ -527,6 +562,14 @@ function _import(
 
   if (symbol.type === "KSMReturn") {
     return new SigilKSMReturnInstruction();
+  }
+
+  if (symbol.type === "KSMUnsure0") {
+    return new SigilKSMUnsure0Instruction();
+  }
+
+  if (symbol.type === "KSMUnsure1") {
+    return new SigilKSMUnsure1Instruction();
   }
 
   if (symbol.type === "KSMGetArgs") {

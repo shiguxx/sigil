@@ -19,6 +19,8 @@ import { SigilKSMGotoInstruction } from "#ksm/ksm-goto-instruction";
 import { SigilKSMThread2Instruction } from "#ksm/ksm-thread2-instruction";
 import { SigilKSMWaitMSInstruction } from "#ksm/ksm-wait-ms-instruction";
 import { SigilKSMLabelInstruction } from "#ksm/ksm-label-instruction";
+import { SigilKSMUnsure0Instruction } from "./ksm-unsure0";
+import { SigilKSMUnsure1Instruction } from "./ksm-unsure1";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -37,6 +39,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
   public readonly unknown0: number[];
   public readonly unknown1: number[];
   public readonly unknown2: number[];
+  public readonly global: SigilKSMFunction;
 
   public readonly imports: Map<number, SigilKSMImport>;
   public readonly functions: Map<number, SigilKSMFunction>;
@@ -57,6 +60,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._section5 = 0;
     this._section6 = 0;
     this._section7 = 0;
+    this.global = new SigilKSMFunction();
 
     this.unknown0 = [];
     this.unknown1 = [];
@@ -113,6 +117,10 @@ class SigilKSM extends CTRBinarySerializable<never> {
         return new SigilKSMWaitMSInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_GET_ARGS:
         return new SigilKSMGetArgsInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE0:
+        return new SigilKSMUnsure0Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE1:
+        return new SigilKSMUnsure1Instruction().parse(buffer, ctx);
       default:
         throw new Error("unknown instruction" + ctx.opcode + "at" + buffer.offset);
     }
@@ -153,7 +161,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
       fn.instructions.push(instruction);
     }
 
-    ctx.seen.add(fn);
+    if (fn !== this.global) {
+      ctx.seen.add(fn);
+    }
   }
 
   protected override _build(buffer: CTRMemory): void {
@@ -206,7 +216,10 @@ class SigilKSM extends CTRBinarySerializable<never> {
       callee.codeEnd = callee.codeStart + callee.codesize;
     }*/
 
-    let codeOffset = 0;
+    let codeOffset = this.global.instructions
+      .map((i) => i.sizeof + CTRMemory.U32_SIZE)
+      .reduce((p, c) => p + c, 0);
+
     const seen = new Set<SigilKSMFunction>();
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
@@ -400,6 +413,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.u32(0x00000000);
 
     ctx.codeOffset = buffer.offset;
+    this.buildFunctionCode(buffer, ctx, this.global);
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
       if (!fn.threadfn) {
@@ -418,6 +432,12 @@ class SigilKSM extends CTRBinarySerializable<never> {
     ctx.codeOffset = buffer.offset;
 
     const functions = Array.from(this.functions.values());
+
+    const firstFunctionCodeStart = functions
+      .sort((a, b) => a.codeStart - b.codeStart)
+      .at(0)!.codeStart;
+
+    this.parseFunctionCode(buffer, ctx, this.global, firstFunctionCodeStart);
 
     while (ctx.seen.size < functions.length) {
       const fn = functions.find(
