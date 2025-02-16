@@ -15,7 +15,7 @@ abstract class SigilKSMNamedCommand extends SigilKSMCommand {
         this.name = `${this.name}\0`;
       }
 
-      const count = CTRMemory.align(this.name.length, 4);
+      const count = CTRMemory.align(Buffer.byteLength(this.name, "utf8"), 4);
       buffer.u32(count / 4);
 
       buffer.string(this.name, {

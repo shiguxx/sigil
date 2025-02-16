@@ -29,7 +29,7 @@ class SigilKSMWaitInstruction extends SigilKSMInstruction {
       return;
     }
 
-    ctx.expr(buffer, this.time);
+    ctx.buildExpr(buffer, this.time);
   }
 
   protected _parse(buffer: CTRMemory, ctx: SigilKSMContext): void {
@@ -38,7 +38,7 @@ class SigilKSMWaitInstruction extends SigilKSMInstruction {
       return;
     }
 
-    this.time = ctx.expr(buffer, null);
+    this.time = ctx.parseExpr(buffer, null);
   }
 
   protected override _sizeof(): number {

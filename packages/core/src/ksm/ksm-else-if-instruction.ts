@@ -34,7 +34,7 @@ class SigilKSMElseIfInstruction extends SigilKSMInstruction {
   protected _build(buffer: CTRMemory, ctx: SigilKSMContext): void {
     buffer.u32(this.unknown0);
     buffer.u32(this.unknown1);
-    ctx.expr(buffer, this.condition);
+    ctx.buildExpr(buffer, this.condition);
     buffer.u32(this.unknown2);
     buffer.u32(this.unknown3);
     buffer.u32(this.unknown4);
@@ -47,7 +47,7 @@ class SigilKSMElseIfInstruction extends SigilKSMInstruction {
 
     this.unknown0 = buffer.u32();
     this.unknown1 = buffer.u32();
-    this.condition = ctx.expr(buffer, null);
+    this.condition = ctx.parseExpr(buffer, null);
     this.unknown2 = buffer.u32();
     this.unknown3 = buffer.u32();
     this.unknown4 = buffer.u32();

@@ -7,17 +7,17 @@ import { SigilKSMInstruction } from "#ksm/ksm-instruction";
 import type { SigilKSMContext, SigilKSMExpression } from "#ksm/ksm-context";
 import exprsizeof from "./ksm-exprsizeof";
 
-type SigilKSMCallCallee = SigilKSMImport | SigilKSMFunction;
+type SigilKSMCallAsChildThreadCallee = SigilKSMImport | SigilKSMFunction;
 
-type SigilKSMCallArgument =
+type SigilKSMCallAsChildThreadArgument =
   | SigilKSMImport
   | SigilKSMFunction
   | SigilKSMVariable
   | SigilKSMExpression;
 
-class SigilKSMCallInstruction extends SigilKSMInstruction {
-  public callee: SigilKSMCallCallee;
-  public arguments: SigilKSMCallArgument[];
+class SigilKSMCallAsChildThreadInstruction extends SigilKSMInstruction {
+  public callee: SigilKSMCallAsChildThreadCallee;
+  public arguments: SigilKSMCallAsChildThreadArgument[];
 
   public constructor() {
     super();
@@ -31,14 +31,14 @@ class SigilKSMCallInstruction extends SigilKSMInstruction {
   }
 
   public override get opcode(): number {
-    return SigilKSMOpCode.OPCODE_CALL;
+    return SigilKSMOpCode.OPCODE_CALL_AS_CHILD_THREAD;
   }
 
   protected _build(buffer: CTRMemory, ctx: SigilKSMContext): void {
     buffer.u32(this.callee.id);
 
     for (const argument of this.arguments) {
-      if(Array.isArray(argument)) {
+      if (Array.isArray(argument)) {
         ctx.buildExpr(buffer, argument);
         continue;
       }
@@ -86,11 +86,14 @@ class SigilKSMCallInstruction extends SigilKSMInstruction {
   }
 }
 
-export { SigilKSMCallInstruction, SigilKSMCallInstruction as KSMCallInstruction };
+export {
+  SigilKSMCallAsChildThreadInstruction,
+  SigilKSMCallAsChildThreadInstruction as KSMCallAsChildThreadInstruction
+};
 
 export type {
-  SigilKSMCallCallee,
-  SigilKSMCallCallee as KSMCallCallee,
-  SigilKSMCallArgument,
-  SigilKSMCallArgument as KSMCallArgument
+  SigilKSMCallAsChildThreadCallee,
+  SigilKSMCallAsChildThreadCallee as KSMCallAsChildThreadCallee,
+  SigilKSMCallAsChildThreadArgument,
+  SigilKSMCallAsChildThreadArgument as KSMCallAsChildThreadArgument
 };

@@ -93,8 +93,9 @@ class SigilKSMVariable extends SigilKSMNamedCommand {
         this.value = `${this.value}\0`;
       }
 
-      const count = CTRMemory.align(this.value.length, 4);
+      const count = CTRMemory.align(Buffer.byteLength(this.value, "utf8"), 4);
       buffer.u32(count / 4);
+
 
       buffer.string(this.value, {
         count,

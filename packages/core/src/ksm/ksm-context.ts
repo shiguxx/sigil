@@ -1,5 +1,5 @@
 import { CTRMemory } from "libctr";
-import type { SigilKSM } from "#ksm/ksm";
+import { SigilKSM } from "#ksm/ksm";
 import { SigilKSMOpCode } from "#ksm/ksm-opcode";
 import { SigilKSMVariable } from "#ksm/ksm-variable";
 import { SigilKSMImport } from "#ksm/ksm-import";
@@ -65,39 +65,35 @@ class SigilKSMContext {
     return va;
   }
 
-  public expr(buffer: CTRMemory, expr: SigilKSMExpression): void;
-
-  public expr(
-    buffer: CTRMemory,
-    initial: null | SigilKSMExpression[number]
-  ): SigilKSMExpression;
-
-  public expr(
-    buffer: CTRMemory,
-    initialOrExpression: null | SigilKSMExpression | SigilKSMExpression[number]
-  ): void | SigilKSMExpression {
-    if (Array.isArray(initialOrExpression)) {
-      for (const part of initialOrExpression) {
-        if (
-          part instanceof SigilKSMImport ||
-          part instanceof SigilKSMFunction ||
-          part instanceof SigilKSMVariable
-        ) {
-          buffer.u32(part.id);
-          continue;
-        }
-
-        part.build(buffer, this);
+  public buildExpr(buffer: CTRMemory, expr: SigilKSMExpression): void {
+    for (const part of expr) {
+      if (
+        part instanceof SigilKSMImport ||
+        part instanceof SigilKSMFunction ||
+        part instanceof SigilKSMVariable
+      ) {
+        buffer.u32(part.id);
+        continue;
       }
 
-      buffer.u32(SigilKSMOpCode.OPCODE_EXPR_END);
-      return;
+      if (part instanceof SigilKSMCallInstruction) {
+        buffer.u32(SigilKSMOpCode.OPCODE_CALL);
+      }
+
+      part.build(buffer, this);
     }
 
+    buffer.u32(SigilKSMOpCode.OPCODE_EXPR_END);
+  }
+
+  public parseExpr(
+    buffer: CTRMemory,
+    initial: null | SigilKSMExpression[number]
+  ): SigilKSMExpression {
     const expr: SigilKSMExpression = [];
 
-    if (initialOrExpression !== null) {
-      expr.push(initialOrExpression);
+    if (initial !== null) {
+      expr.push(initial);
     }
 
     let id = buffer.u32();

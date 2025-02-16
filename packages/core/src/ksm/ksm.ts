@@ -21,6 +21,12 @@ import { SigilKSMWaitMSInstruction } from "#ksm/ksm-wait-ms-instruction";
 import { SigilKSMLabelInstruction } from "#ksm/ksm-label-instruction";
 import { SigilKSMUnsure0Instruction } from "./ksm-unsure0";
 import { SigilKSMUnsure1Instruction } from "./ksm-unsure1";
+import { SigilKSMReturnValInstruction } from "./ksm-returnval-instruction";
+import { SigilKSMSwitchInstruction } from "./ksm-switch-instruction";
+import { SigilKSMCaseInstruction } from "./ksm-case-instruction";
+import { SigilKSMEndSwitchInstruction } from "./ksm-end-switch-instruction";
+import { SigilKSMCallAsChildThreadInstruction } from "./ksm-call-as-child-thread-instruction";
+import { SigilKSMWaitCompletedInstruction } from "./ksm-wait-completed";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -121,6 +127,18 @@ class SigilKSM extends CTRBinarySerializable<never> {
         return new SigilKSMUnsure0Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_UNSURE1:
         return new SigilKSMUnsure1Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_SWITCH:
+        return new SigilKSMSwitchInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_CASE:
+        return new SigilKSMCaseInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_RETURNVAL:
+        return new SigilKSMReturnValInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_END_SWITCH:
+        return new SigilKSMEndSwitchInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_CALL_AS_CHILD_THREAD:
+        return new SigilKSMCallAsChildThreadInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_WAIT_COMPLETED:
+        return new SigilKSMWaitCompletedInstruction().parse(buffer, ctx);
       default:
         throw new Error("unknown instruction" + ctx.opcode + "at" + buffer.offset);
     }
@@ -167,55 +185,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   protected override _build(buffer: CTRMemory): void {
-    /*const threads = new Map<SigilKSMFunction, SigilKSMFunction>();
-
-    for (const fn of this.functions.values()) {
-      for (const instruction of fn.instructions) {
-        if (
-          instruction instanceof SigilKSMThread2Instruction &&
-          instruction.callee instanceof SigilKSMFunction
-        ) {
-          threads.set(instruction.callee, instruction.caller);
-        }
-      }
-    }
-
-    let codeOffset = 0;
-
-    for (const fn of this.functions.values()) {
-      if (threads.has(fn)) {
-        continue;
-      }
-
-      fn.codeStart = codeOffset;
-      fn.codeEnd = codeOffset + fn.codesize;
-      codeOffset += fn.codesize;
-    }
-
-    for (const callee of this.functions.values()) {
-      const caller = threads.get(callee);
-
-      if (caller === undefined) {
-        continue;
-      }
-
-      callee.codeStart = 0;
-
-      for (const instruction of caller.instructions) {
-        callee.codeStart += instruction.sizeof;
-
-        if (
-          instruction instanceof SigilKSMThread2Instruction &&
-          instruction.callee === callee
-        ) {
-          callee.codeStart += instruction.sizeof - callee.codesize;
-          break;
-        }
-      }
-
-      callee.codeEnd = callee.codeStart + callee.codesize;
-    }*/
-
     let codeOffset = this.global.instructions
       .map((i) => i.sizeof + CTRMemory.U32_SIZE)
       .reduce((p, c) => p + c, 0);

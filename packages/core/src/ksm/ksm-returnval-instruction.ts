@@ -1,32 +1,30 @@
 import { CTRMemory } from "libctr";
-import { SigilKSMVariable } from "#ksm/ksm-variable";
-import { SigilKSMInstruction } from "#ksm/ksm-instruction";
 import type { SigilKSMContext, SigilKSMExpression } from "#ksm/ksm-context";
+import { SigilKSMInstruction } from "#ksm/ksm-instruction";
 import { SigilKSMOpCode } from "./ksm-opcode";
+import { SigilKSMVariable } from "./ksm-variable";
 import exprsizeof from "./ksm-exprsizeof";
 
-class SigilKSMSetInstruction extends SigilKSMInstruction {
-  public assignee: SigilKSMVariable;
+class SigilKSMReturnValInstruction extends SigilKSMInstruction {
   public value: SigilKSMVariable | SigilKSMExpression;
 
   public constructor() {
     super();
-
     this.value = [];
-    this.assignee = new SigilKSMVariable();
   }
 
   public override get const(): boolean {
-    return this.value instanceof SigilKSMVariable;
+    return (
+      this.value instanceof SigilKSMVariable ||
+      (Array.isArray(this.value) && this.value.length === 0)
+    );
   }
 
   public override get opcode(): number {
-    return SigilKSMOpCode.OPCODE_SET;
+    return SigilKSMOpCode.OPCODE_RETURNVAL;
   }
 
   protected _build(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    buffer.u32(this.assignee.id);
-
     if (this.value instanceof SigilKSMVariable) {
       buffer.u32(this.value.id);
       return;
@@ -36,8 +34,6 @@ class SigilKSMSetInstruction extends SigilKSMInstruction {
   }
 
   protected _parse(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this.assignee = ctx.var(buffer.u32());
-
     if (ctx.const) {
       const id = buffer.u32();
 
@@ -54,15 +50,11 @@ class SigilKSMSetInstruction extends SigilKSMInstruction {
   }
 
   protected override _sizeof(): number {
-    let sizeof = 0;
-
-    sizeof += CTRMemory.U32_SIZE; // assignee id
-    sizeof += Array.isArray(this.value)
-      ? exprsizeof(this.value)
-      : CTRMemory.U32_SIZE;
-
-    return sizeof;
+    return Array.isArray(this.value) ? exprsizeof(this.value) : CTRMemory.U32_SIZE;
   }
 }
 
-export { SigilKSMSetInstruction, SigilKSMSetInstruction as KSMSetInstruction };
+export {
+  SigilKSMReturnValInstruction,
+  SigilKSMReturnValInstruction as KSMReturnValInstruction
+};

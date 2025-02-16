@@ -2,21 +2,18 @@ import { CTRMemory } from "libctr";
 import { SigilKSMInstruction } from "#ksm/ksm-instruction";
 import type { SigilKSMContext, SigilKSMExpression } from "#ksm/ksm-context";
 import { SigilKSMOpCode } from "./ksm-opcode";
+import { SigilKSMVariable } from "./ksm-variable";
 import exprsizeof from "./ksm-exprsizeof";
 
-class SigilKSMIfInstruction extends SigilKSMInstruction {
+class SigilKSMCaseInstruction extends SigilKSMInstruction {
   public unknown0: number;
-  public unknown1: number;
-  public unknown2: number;
-  public condition: SigilKSMExpression;
+  public value: SigilKSMExpression | SigilKSMVariable;
 
   public constructor() {
     super();
 
     this.unknown0 = 0;
-    this.unknown1 = 0;
-    this.unknown2 = 0;
-    this.condition = [];
+    this.value = new SigilKSMVariable();
   }
 
   public override get const(): boolean {
@@ -24,14 +21,17 @@ class SigilKSMIfInstruction extends SigilKSMInstruction {
   }
 
   public override get opcode(): number {
-    return SigilKSMOpCode.OPCODE_IF;
+    return SigilKSMOpCode.OPCODE_CASE;
   }
 
   protected _build(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    ctx.buildExpr(buffer, this.condition);
+    if (Array.isArray(this.value)) {
+      ctx.buildExpr(buffer, this.value);
+    } else {
+      buffer.u32(this.value.id);
+    }
+
     buffer.u32(this.unknown0);
-    buffer.u32(this.unknown1);
-    buffer.u32(this.unknown2);
   }
 
   protected _parse(buffer: CTRMemory, ctx: SigilKSMContext): void {
@@ -39,20 +39,16 @@ class SigilKSMIfInstruction extends SigilKSMInstruction {
       throw "bad...";
     }
 
-    this.condition = ctx.parseExpr(buffer, null);
+    this.value = ctx.var(buffer.u32());
     this.unknown0 = buffer.u32();
-    this.unknown1 = buffer.u32();
-    this.unknown2 = buffer.u32();
   }
 
   protected override _sizeof(): number {
-    let sizeof = 0;
-
-    sizeof += CTRMemory.U32_SIZE * 3;
-    sizeof += exprsizeof(this.condition);
-
-    return sizeof;
+    return (
+      CTRMemory.U32_SIZE +
+      (Array.isArray(this.value) ? exprsizeof(this.value) : CTRMemory.U32_SIZE)
+    );
   }
 }
 
-export { SigilKSMIfInstruction, SigilKSMIfInstruction as KSMIfInstruction };
+export { SigilKSMCaseInstruction, SigilKSMCaseInstruction as KSMCaseInstruction };
