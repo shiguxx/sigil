@@ -117,22 +117,18 @@ const IKSMInstruction = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("KSMIf"),
     unknown0: z.number().int(),
-    unknown1: z.number().int(),
     unknown2: z.number().int(),
     condition: IKSMExpression
   }),
   z.object({
     type: z.literal("KSMElseIf"),
-    unknown0: z.number().int(),
     unknown1: z.number().int(),
     unknown2: z.number().int(),
-    unknown3: z.number().int(),
     unknown4: z.number().int(),
     condition: IKSMExpression
   }),
   z.object({
-    type: z.literal("KSMElse"),
-    unknown0: z.number().int()
+    type: z.literal("KSMElse")
   }),
   z.object({
     type: z.literal("KSMWait"),
@@ -601,7 +597,6 @@ function _import(
 
   if (symbol.type === "KSMElse") {
     const object = new SigilKSMElseInstruction();
-    object.unknown0 = symbol.unknown0;
     return object;
   }
 
@@ -609,7 +604,6 @@ function _import(
     const object = new SigilKSMIfInstruction();
 
     object.unknown0 = symbol.unknown0;
-    object.unknown1 = symbol.unknown1;
     object.unknown2 = symbol.unknown2;
     object.condition = <SigilKSMExpression>_import(fn, script, symbol.condition);
 
@@ -619,13 +613,11 @@ function _import(
   if (symbol.type === "KSMElseIf") {
     const object = new SigilKSMElseIfInstruction();
 
-    object.unknown0 = symbol.unknown0;
     object.unknown1 = symbol.unknown1;
     object.unknown2 = symbol.unknown2;
-    object.unknown3 = symbol.unknown3;
     object.unknown4 = symbol.unknown4;
-    object.condition = <SigilKSMExpression>_import(fn, script, symbol.condition);
 
+    object.condition = <SigilKSMExpression>_import(fn, script, symbol.condition);
     return object;
   }
 

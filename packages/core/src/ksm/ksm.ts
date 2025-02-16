@@ -268,6 +268,16 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._buildSection6(buffer, ctx);
     this._buildSection7(buffer, ctx);
 
+    this._fixJumpToOffsets(this.global, ctx);
+
+    for (const fn of Array.from(this.functions.values()).reverse()) {
+      this._fixJumpToOffsets(fn, ctx);
+    }
+
+    ctx.seen.clear();
+    buffer.seek(this._section7);
+    this._buildSection7(buffer, ctx);
+
     buffer.seek(start);
     this._buildHeader(buffer);
   }
@@ -324,6 +334,62 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
     if (buffer.u32() !== 0x00000000) {
       throw "ksm.err_malformed_file";
+    }
+  }
+
+  private _fixJumpToOffsets(fn: SigilKSMFunction, ctx: SigilKSMContext): void {
+    for (const [index, instruction] of fn.instructions.entries()) {
+      if (instruction instanceof SigilKSMElseInstruction) {
+        let jumpToOffset = 0;
+
+        for (let i = index + 1; i < fn.instructions.length; i++) {
+          const nextInstruction = fn.instructions[i]!;
+
+          if (nextInstruction instanceof SigilKSMEndIfInstruction) {
+            jumpToOffset = nextInstruction.offset! - ctx.codeOffset;
+            break;
+          }
+        }
+
+        instruction.unknown0 = jumpToOffset / 4;
+      } else if (
+        instruction instanceof SigilKSMIfInstruction ||
+        instruction instanceof SigilKSMElseIfInstruction
+      ) {
+        let jumpToOffset = 0;
+
+        for (let i = index + 1; i < fn.instructions.length; i++) {
+          const nextInstruction = fn.instructions[i]!;
+
+          if (nextInstruction instanceof SigilKSMEndIfInstruction) {
+            jumpToOffset =
+              nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+
+            break;
+          }
+
+          if (
+            nextInstruction instanceof SigilKSMElseInstruction ||
+            nextInstruction instanceof SigilKSMElseIfInstruction
+          ) {
+            jumpToOffset =
+              nextInstruction.offset! - ctx.codeOffset + CTRMemory.U32_SIZE;
+
+            break;
+          }
+        }
+
+        if (instruction instanceof SigilKSMIfInstruction) {
+          instruction.unknown1 = jumpToOffset / 4;
+        }
+
+        if (instruction instanceof SigilKSMElseIfInstruction) {
+          instruction.unknown3 = jumpToOffset / 4;
+
+          instruction.unknown0 =
+            instruction.unknown3 - instruction.condition.length + 3;
+        }
+      }
     }
   }
 
