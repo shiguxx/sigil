@@ -17,6 +17,10 @@ class SigilKSMSetInstruction extends SigilKSMInstruction {
   }
 
   public override get const(): boolean {
+    if (Array.isArray(this.value) && this.value.length === 0) {
+      return true;
+    }
+
     return this.value instanceof SigilKSMVariable;
   }
 

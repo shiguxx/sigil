@@ -27,6 +27,10 @@ import { SigilKSMCaseInstruction } from "./ksm-case-instruction";
 import { SigilKSMEndSwitchInstruction } from "./ksm-end-switch-instruction";
 import { SigilKSMCallAsChildThreadInstruction } from "./ksm-call-as-child-thread-instruction";
 import { SigilKSMWaitCompletedInstruction } from "./ksm-wait-completed";
+import { SigilKSMDeleteRuntimeInstruction } from "./ksm-delete-runtime-instruction";
+import { SigilKSMThreadInstruction } from "./ksm-thread-cmd";
+import { SigilKSMDoWhileInstruction } from "./ksm-dowhile-instruction";
+import { SigilKSMEndDoWhileInstruction } from "./ksm-end-dowhile-instruction";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -117,6 +121,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
         return new SigilKSMReturnInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_ELSE_IF:
         return new SigilKSMElseIfInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_THREAD:
+        return new SigilKSMThreadInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_THREAD2:
         return new SigilKSMThread2Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_WAIT_MS:
@@ -139,6 +145,12 @@ class SigilKSM extends CTRBinarySerializable<never> {
         return new SigilKSMCallAsChildThreadInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_WAIT_COMPLETED:
         return new SigilKSMWaitCompletedInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_DELETE_RUNTIME:
+        return new SigilKSMDeleteRuntimeInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_DO_WHILE:
+        return new SigilKSMDoWhileInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_END_DO_WHILE:
+        return new SigilKSMEndDoWhileInstruction().parse(buffer, ctx);
       default:
         throw new Error("unknown instruction" + ctx.opcode + "at" + buffer.offset);
     }
@@ -172,7 +184,10 @@ class SigilKSM extends CTRBinarySerializable<never> {
     while (buffer.offset - start < size) {
       const instruction = this.parseInstruction(buffer, pushed);
 
-      if (instruction instanceof SigilKSMThread2Instruction) {
+      if (
+        instruction instanceof SigilKSMThreadInstruction ||
+        instruction instanceof SigilKSMThread2Instruction
+      ) {
         instruction.caller = fn;
       }
 
@@ -201,7 +216,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
       for (const instruction of fn.instructions) {
         if (
-          instruction instanceof SigilKSMThread2Instruction &&
+          (instruction instanceof SigilKSMThreadInstruction ||
+            instruction instanceof SigilKSMThread2Instruction) &&
           instruction.callee instanceof SigilKSMFunction
         ) {
           instruction.callee.codeStart = codeOffset;
@@ -442,6 +458,32 @@ class SigilKSM extends CTRBinarySerializable<never> {
         }
 
         instruction.unknown0 = jumpToOffset / 4;
+      } else if (instruction instanceof SigilKSMDoWhileInstruction) {
+        let depth = 0;
+        let jumpToOffset2 = 0;
+
+        for (let i = index + 1; i < fn.instructions.length; i++) {
+          const nextInstruction = fn.instructions[i]!;
+
+          if (nextInstruction instanceof SigilKSMDoWhileInstruction) {
+            depth++;
+            continue;
+          }
+
+          if (nextInstruction instanceof SigilKSMEndDoWhileInstruction) {
+            if (depth <= 0) {
+              jumpToOffset2 =
+                nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+
+              break;
+            } else {
+              depth--;
+              continue;
+            }
+          }
+        }
+
+        instruction.unknown0 = jumpToOffset2 / 4;
       }
     }
   }

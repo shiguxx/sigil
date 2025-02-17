@@ -17,7 +17,8 @@ type SigilKSMIntrinsicType =
   | "sub"
   | "left_paren"
   | "right_paren"
-  | "next_function";
+  | "next_function"
+  | SigilKSMOpCode.OPCODE_UNKNOWN_INSTRISIC0;
 
 class SigilKSMIntrinsic extends SigilKSMInstruction {
   public type: SigilKSMIntrinsicType;
@@ -64,7 +65,7 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
       case "next_function":
         return SigilKSMOpCode.OPCODE_NEXT_FUNCTION;
       default:
-        throw new Error(`Unknown operation type: ${this.type}`);
+        return this.type;
     }
   }
 
@@ -114,6 +115,9 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
         break;
       case SigilKSMOpCode.OPCODE_NEXT_FUNCTION:
         this.type = "next_function";
+        break;
+      case SigilKSMOpCode.OPCODE_UNKNOWN_INSTRISIC0:
+        this.type = SigilKSMOpCode.OPCODE_UNKNOWN_INSTRISIC0;
         break;
       default:
         throw new Error("bad intristic " + opcode);
