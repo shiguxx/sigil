@@ -253,13 +253,17 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._buildSection6(buffer, ctx);
     this._buildSection7(buffer, ctx);
 
+    ctx.seen.clear();
     this._fixJumpToOffsets(this.global, ctx);
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
+      this._fixLabels(fn, ctx);
       this._fixJumpToOffsets(fn, ctx);
     }
 
-    ctx.seen.clear();
+    buffer.seek(this._section1);
+    this._buildSection1(buffer, ctx);
+
     buffer.seek(this._section7);
     this._buildSection7(buffer, ctx);
 
@@ -319,6 +323,23 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
     if (buffer.u32() !== 0x00000000) {
       throw "ksm.err_malformed_file";
+    }
+  }
+
+  private _fixLabels(fn: SigilKSMFunction, ctx: SigilKSMContext): void {
+    let labelCounter = 0;
+
+    for (const instruction of fn.instructions.values()) {
+      if (instruction instanceof SigilKSMLabelInstruction) {
+        const label = Array.from(fn.labels.values())[labelCounter];
+
+        if (label !== undefined) {
+          label.address =
+            (instruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE) / 4;
+
+          labelCounter += 1;
+        }
+      }
     }
   }
 

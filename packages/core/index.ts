@@ -209,7 +209,6 @@ type IKSMInstruction = z.infer<typeof IKSMInstruction>;
 
 const IKSMLabel = z.object({
   id: z.number().int(),
-  address: z.number().int(),
   name: z.string().nullable()
 });
 
@@ -396,7 +395,7 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
       const instructions: IKSMInstruction[] = [];
 
       for (const la of fn.labels.values()) {
-        labels.push({ ...la, address: la.code });
+        labels.push(la);
       }
 
       for (const va of fn.variables.values()) {
@@ -670,7 +669,7 @@ function _import(
         const _label = new SigilKSMLabel();
 
         _label.id = la.id;
-        _label.code = la.address;
+        _label.address = 0;
 
         _function.labels.set(_label.id, _label);
       }
