@@ -27,7 +27,11 @@ class SigilKSMCallInstruction extends SigilKSMInstruction {
   }
 
   public override get const(): boolean {
-    return this.arguments.every((arg) => arg instanceof SigilKSMVariable);
+    return (
+      this.arguments.length === 0 ||
+      this.arguments[0] instanceof SigilKSMImport ||
+      this.arguments[0] instanceof SigilKSMVariable
+    );
   }
 
   public override get opcode(): number {
@@ -38,7 +42,7 @@ class SigilKSMCallInstruction extends SigilKSMInstruction {
     buffer.u32(this.callee.id);
 
     for (const argument of this.arguments) {
-      if(Array.isArray(argument)) {
+      if (Array.isArray(argument)) {
         ctx.buildExpr(buffer, argument);
         continue;
       }

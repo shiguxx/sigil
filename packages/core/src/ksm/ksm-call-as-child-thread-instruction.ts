@@ -27,7 +27,11 @@ class SigilKSMCallAsChildThreadInstruction extends SigilKSMInstruction {
   }
 
   public override get const(): boolean {
-    return this.arguments.every((arg) => arg instanceof SigilKSMVariable);
+    return (
+      this.arguments.length === 0 ||
+      this.arguments[0] instanceof SigilKSMImport ||
+      this.arguments[0] instanceof SigilKSMVariable
+    );
   }
 
   public override get opcode(): number {
