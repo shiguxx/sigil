@@ -310,13 +310,23 @@ class SigilKSM extends CTRBinarySerializable<never> {
     for (const [index, instruction] of fn.instructions.entries()) {
       if (instruction instanceof SigilKSMElseInstruction) {
         let jumpToOffset = 0;
+        let depth = 0;
 
         for (let i = index + 1; i < fn.instructions.length; i++) {
           const nextInstruction = fn.instructions[i]!;
 
+          if (nextInstruction instanceof SigilKSMIfInstruction) {
+            depth++;
+            continue;
+          }
           if (nextInstruction instanceof SigilKSMEndIfInstruction) {
-            jumpToOffset = nextInstruction.offset! - ctx.codeOffset;
-            break;
+            if (depth <= 0) {
+              jumpToOffset = nextInstruction.offset! - ctx.codeOffset;
+              break;
+            } else {
+              depth--;
+              continue;
+            }
           }
         }
 
@@ -325,25 +335,37 @@ class SigilKSM extends CTRBinarySerializable<never> {
         instruction instanceof SigilKSMIfInstruction ||
         instruction instanceof SigilKSMElseIfInstruction
       ) {
+        let depth = 0;
+        let extraOffset = 2;
         let jumpToOffset = 0;
 
         for (let i = index + 1; i < fn.instructions.length; i++) {
           const nextInstruction = fn.instructions[i]!;
 
-          if (nextInstruction instanceof SigilKSMEndIfInstruction) {
-            jumpToOffset =
-              nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+          if (nextInstruction instanceof SigilKSMIfInstruction) {
+            depth++;
+            continue;
+          }
 
-            break;
+          if (nextInstruction instanceof SigilKSMEndIfInstruction) {
+            if (depth <= 0) {
+              jumpToOffset =
+                nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+              extraOffset = 0;
+              break;
+            } else {
+              depth--;
+              continue;
+            }
           }
 
           if (
-            nextInstruction instanceof SigilKSMElseInstruction ||
-            nextInstruction instanceof SigilKSMElseIfInstruction
+            depth <= 0 &&
+            (nextInstruction instanceof SigilKSMElseInstruction ||
+              nextInstruction instanceof SigilKSMElseIfInstruction)
           ) {
             jumpToOffset =
               nextInstruction.offset! - ctx.codeOffset + CTRMemory.U32_SIZE;
-
             break;
           }
         }
@@ -354,10 +376,72 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
         if (instruction instanceof SigilKSMElseIfInstruction) {
           instruction.unknown3 = jumpToOffset / 4;
-
-          instruction.unknown0 =
-            instruction.unknown3 - instruction.condition.length + 3;
+          instruction.unknown0 = instruction.unknown3 - extraOffset;
         }
+      } else if (instruction instanceof SigilKSMSwitchInstruction) {
+        let depth = 0;
+        let jumpToOffset = 0;
+        let jumpToOffset2 = 0;
+
+        for (let i = index + 1; i < fn.instructions.length; i++) {
+          const nextInstruction = fn.instructions[i]!;
+
+          if (
+            nextInstruction instanceof SigilKSMCaseInstruction &&
+            jumpToOffset == 0
+          ) {
+            jumpToOffset =
+              nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+            continue;
+          }
+          if (nextInstruction instanceof SigilKSMSwitchInstruction) {
+            depth++;
+            continue;
+          }
+          if (nextInstruction instanceof SigilKSMEndSwitchInstruction) {
+            if (depth <= 0) {
+              jumpToOffset2 =
+                nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+
+              break;
+            } else {
+              depth--;
+              continue;
+            }
+          }
+        }
+
+        instruction.unknown0 = jumpToOffset2 / 4;
+        instruction.unknown1 = jumpToOffset / 4;
+      } else if (instruction instanceof SigilKSMCaseInstruction) {
+        let jumpToOffset = 0;
+        let depth = 0;
+
+        for (let i = index + 1; i < fn.instructions.length; i++) {
+          const nextInstruction = fn.instructions[i]!;
+
+          if (nextInstruction instanceof SigilKSMCaseInstruction && depth <= 0) {
+            jumpToOffset =
+              nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+            break;
+          }
+          if (nextInstruction instanceof SigilKSMSwitchInstruction) {
+            depth++;
+            continue;
+          }
+          if (nextInstruction instanceof SigilKSMEndSwitchInstruction) {
+            if (depth <= 0) {
+              jumpToOffset =
+                nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
+              break;
+            } else {
+              depth--;
+              continue;
+            }
+          }
+        }
+
+        instruction.unknown0 = jumpToOffset / 4;
       }
     }
   }
