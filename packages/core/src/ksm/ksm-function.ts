@@ -15,7 +15,7 @@ class SigilKSMFunction extends SigilKSMNamedCommand {
   public unknown2: number;
   public codeStart: number;
 
-  public threadfn: boolean;
+  public inlinefn: boolean;
   public readonly labels: Map<number, SigilKSMLabel>;
   public readonly tables: Map<number, SigilKSMTable>;
   public readonly instructions: SigilKSMInstruction[];
@@ -31,7 +31,7 @@ class SigilKSMFunction extends SigilKSMNamedCommand {
     this.unknown2 = 0;
     this.codeStart = 0;
     this.public = false;
-    this.threadfn = false;
+    this.inlinefn = false;
 
     this.instructions = [];
     this.labels = new Map();

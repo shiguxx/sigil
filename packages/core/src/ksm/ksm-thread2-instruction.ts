@@ -82,7 +82,7 @@ class SigilKSMThread2Instruction extends SigilKSMInstruction {
         this.give.length * CTRMemory.U32_SIZE + // give
         this.take.length * CTRMemory.U32_SIZE; // take
 
-      this.callee.threadfn = true;
+      this.callee.inlinefn = true;
 
       ctx.script.parseFunctionCode(
         buffer,

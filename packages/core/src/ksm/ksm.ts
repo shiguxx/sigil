@@ -326,11 +326,28 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
   private _fixCodeStartOffsets(): void {
     const seen = new Set<SigilKSMFunction>();
-
     let currentCodeOffset = 0;
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
       fixCodeStartOffset(fn, null);
+    }
+
+    for (const ta of Array.from(this.tables.values())) {
+      currentCodeOffset += 4;
+      ta.startOffset = currentCodeOffset;
+
+      if (ta.type === "byte") {
+        currentCodeOffset += ta.length;
+      } else if (
+        ta.type === "float" ||
+        ta.type === "int" ||
+        ta.type === "variable"
+      ) {
+        currentCodeOffset += ta.length * 4;
+      }
+
+      currentCodeOffset = CTRMemory.align(currentCodeOffset, 4);
+      currentCodeOffset += 4;
     }
 
     function fixCodeStartOffset(
@@ -635,15 +652,73 @@ class SigilKSM extends CTRBinarySerializable<never> {
     ctx.codeOffset = buffer.offset;
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
-      if (!fn.threadfn) {
+      if (!fn.inlinefn) {
         this.buildFunctionCode(buffer, ctx, fn);
       }
+    }
+
+    for (const ta of this.tables.values()) {
+      this._buildTableValues(buffer, ctx, ta);
     }
 
     this._buildUnknownSection(buffer, this.unknown2, ctx);
 
     const diff = buffer.offset - ctx.codeOffset;
     buffer.seek(this._section7).u32(diff / 4);
+  }
+
+  private _buildTableValues(
+    buffer: CTRMemory,
+    ctx: SigilKSMContext,
+    table: SigilKSMTable
+  ): void {
+    if (ctx.seen.has(table)) {
+      throw "OwO";
+    }
+
+    ctx.seen.add(table);
+
+    if (table.type === "int") {
+      buffer.u32(0x65);
+    } else if (table.type === "float") {
+      buffer.u32(0x64);
+    } else if (table.type === "variable") {
+      buffer.u32(0x63);
+    }
+
+    for (const va of table.values) {
+      if (table.type === "int") {
+        if (typeof va !== "number") {
+          throw "bad..";
+        }
+
+        buffer.i32(va);
+      } else if (table.type === "byte") {
+        if (typeof va !== "number") {
+          throw "bad..";
+        }
+
+        buffer.u8(va);
+      } else if (table.type === "float") {
+        if (typeof va !== "number") {
+          throw "bad..";
+        }
+
+        buffer.f32(va);
+      } else if (table.type === "variable") {
+        if (typeof va !== "object") {
+          throw "bad..";
+        }
+
+        buffer.u32(va.id);
+      }
+    }
+
+    while (buffer.offset % 4 !== 0) {
+      buffer.u8(0x00);
+    }
+
+    buffer.u32(0x66);
   }
 
   private _parseTableValues(
@@ -677,6 +752,12 @@ class SigilKSM extends CTRBinarySerializable<never> {
       }
     }
 
+    while (buffer.offset % 4 !== 0) {
+      if (buffer.u8() !== 0x00) {
+        throw new Error("bad padding");
+      }
+    }
+
     if (buffer.u32() !== 0x66) {
       throw new Error("invalid closing code");
     }
@@ -691,6 +772,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
       ...this.functions.values()
     ]);
 
+    const totalFunctionAndTables = functionsAndTables.length;
+
     functionsAndTables.sort((a, b) => {
       const aStart = a instanceof SigilKSMFunction ? a.codeStart : a.startOffset;
       const bStart = b instanceof SigilKSMFunction ? b.codeStart : b.startOffset;
@@ -698,11 +781,15 @@ class SigilKSM extends CTRBinarySerializable<never> {
       return aStart - bStart;
     });
 
-    while (ctx.seen.size < functionsAndTables.length) {
+    while (ctx.seen.size < totalFunctionAndTables) {
       const fnOrTable = functionsAndTables.shift();
 
       if (fnOrTable === undefined) {
         break;
+      }
+
+      if (ctx.seen.has(fnOrTable)) {
+        continue;
       }
 
       const relativeStart =
@@ -711,18 +798,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
           : fnOrTable.startOffset;
 
       const absoluteStart = relativeStart + ctx.codeOffset;
-
-      console.log(
-        `PARSING ROUTINE FOR ${fnOrTable.name} (${fnOrTable.constructor.name})`
-      );
-
-      console.log(`start: ${absoluteStart} (r: ${relativeStart})`);
-
-      console.log(
-        `current: ${buffer.offset} (r: ${buffer.offset - ctx.codeOffset})`
-      );
-
-      console.log("\n");
 
       // were not at the start of this function so parse
       // the code until then into a global function
@@ -739,7 +814,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
           absoluteStart - buffer.offset,
           true
         );
-
       }
 
       if (buffer.offset !== absoluteStart) {

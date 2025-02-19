@@ -11,7 +11,6 @@ class SigilKSMTable extends SigilKSMNamedCommand {
   private static readonly TYPE_VARIABLE = 0x00000000;
 
   public id: number;
-  public flags: number;
   private _type: number;
   public length: number;
   public unknown0: number;
@@ -23,7 +22,6 @@ class SigilKSMTable extends SigilKSMNamedCommand {
     this._type = 0;
 
     this.id = 0;
-    this.flags = 0;
     this.length = 0;
     this.unknown0 = 0;
     this.startOffset = 0;
@@ -66,7 +64,14 @@ class SigilKSMTable extends SigilKSMNamedCommand {
   }
 
   protected _build(buffer: CTRMemory): void {
-    throw new Error("no implemented"); buffer;
+    buffer.u32(this.name !== null ? 0xffffffff : 0);
+    buffer.u32(this.id);
+    buffer.u32(this._type);
+
+    buffer.u32(this.length);
+    buffer.u32(this.startOffset / 4 - 1);
+
+    this._buildname(buffer);
   }
 
   protected _parse(buffer: CTRMemory): void {
