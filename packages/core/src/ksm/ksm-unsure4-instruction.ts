@@ -6,7 +6,7 @@ import { SigilKSMOpCode } from "./ksm-opcode";
 import exprsizeof from "./ksm-exprsizeof";
 import { SigilKSMImport } from "./ksm-import";
 
-class SigilKSMUnsure3Instruction extends SigilKSMInstruction {
+class SigilKSMUnsure4Instruction extends SigilKSMInstruction {
   public unknown0: SigilKSMVariable;
 
   public constructor() {
@@ -36,4 +36,4 @@ class SigilKSMUnsure3Instruction extends SigilKSMInstruction {
   }
 }
 
-export { SigilKSMUnsure3Instruction, SigilKSMUnsure3Instruction as KSMUnsure3Instruction };
+export { SigilKSMUnsure4Instruction, SigilKSMUnsure4Instruction as KSMUnsure4Instruction };

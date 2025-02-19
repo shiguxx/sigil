@@ -36,6 +36,9 @@ import { SigilKSMCallAsThreadInstruction } from "./ksm-call-as-thread-instructio
 import { SigilKSMUnsure2Instruction } from "./ksm-unsure2";
 import { SigilKSMBreakInstruction } from "./ksm-break-instruction";
 import { SigilKSMUnsure3Instruction } from "./ksm-unsure3";
+import { SigilKSMCase2Instruction } from "./ksm-case2-instruction";
+import { SigilKSMBreakSwitchInstruction } from "./ksm-break-switch-instruction";
+import { SigilKSMUnsure4Instruction } from "./ksm-unsure4-instruction";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -104,6 +107,12 @@ class SigilKSM extends CTRBinarySerializable<never> {
     ctx.const = (raw & 0x100) !== 0;
 
     switch (ctx.opcode) {
+      case SigilKSMOpCode.OPCODE_UNSURE4:
+        return new SigilKSMUnsure4Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_BREAK_SWITCH:
+        return new SigilKSMBreakSwitchInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_CASE2:
+        return new SigilKSMCase2Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_IF:
         return new SigilKSMIfInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_SET:
