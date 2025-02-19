@@ -7,6 +7,7 @@ import { SigilKSMIntrinsic } from "#ksm/ksm-intrinsic";
 import { SigilKSMFunction } from "#ksm/ksm-function";
 import { SigilKSMCallInstruction } from "#ksm/ksm-call-instruction";
 import { SigilKSMLabel } from "#ksm/ksm-label";
+import { SigilKSMTable } from "./ksm-table";
 
 type SigilKSMSymbol = SigilKSMImport | SigilKSMVariable | SigilKSMFunction;
 
@@ -21,7 +22,7 @@ class SigilKSMContext {
   public opcode: number;
   public codeOffset: number;
   public readonly script: SigilKSM;
-  public readonly seen: Set<SigilKSMFunction>;
+  public readonly seen: Set<SigilKSMTable | SigilKSMFunction>;
 
   private readonly _labels: Map<number, SigilKSMLabel>;
   private readonly _scope: Map<number, SigilKSMVariable>;

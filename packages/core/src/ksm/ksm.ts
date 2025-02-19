@@ -31,6 +31,7 @@ import { SigilKSMDeleteRuntimeInstruction } from "./ksm-delete-runtime-instructi
 import { SigilKSMThreadInstruction } from "./ksm-thread-cmd";
 import { SigilKSMDoWhileInstruction } from "./ksm-dowhile-instruction";
 import { SigilKSMEndDoWhileInstruction } from "./ksm-end-dowhile-instruction";
+import { SigilKSMTable } from "./ksm-table";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -49,8 +50,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
   public readonly unknown0: number[];
   public readonly unknown1: number[];
   public readonly unknown2: number[];
-  public readonly global: SigilKSMFunction;
 
+  public readonly tables: Map<number, SigilKSMTable>;
   public readonly imports: Map<number, SigilKSMImport>;
   public readonly functions: Map<number, SigilKSMFunction>;
   public readonly variables: Map<number, SigilKSMVariable>;
@@ -58,6 +59,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
   public constructor() {
     super();
 
+    this.tables = new Map();
     this.imports = new Map();
     this.functions = new Map();
     this.variables = new Map();
@@ -70,7 +72,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._section5 = 0;
     this._section6 = 0;
     this._section7 = 0;
-    this.global = new SigilKSMFunction();
 
     this.unknown0 = [];
     this.unknown1 = [];
@@ -152,7 +153,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
       case SigilKSMOpCode.OPCODE_END_DO_WHILE:
         return new SigilKSMEndDoWhileInstruction().parse(buffer, ctx);
       default:
-        throw new Error("unknown instruction" + ctx.opcode + "at" + buffer.offset);
+        throw new Error(
+          `unknown instruction 0x${ctx.opcode.toString(16)} at ${buffer.offset}`
+        );
     }
   }
 
@@ -176,7 +179,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer: CTRMemory,
     ctx: SigilKSMContext,
     fn: SigilKSMFunction,
-    size: number
+    size: number,
+    noadd?: boolean
   ): void {
     const pushed = ctx.push(fn);
     const start = buffer.offset;
@@ -194,7 +198,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
       fn.instructions.push(instruction);
     }
 
-    if (fn !== this.global) {
+    if (!noadd) {
       ctx.seen.add(fn);
     }
   }
@@ -219,7 +223,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._buildSection7(buffer, ctx);
 
     ctx.seen.clear();
-    this._fixJumpToOffsets(this.global, ctx);
+    //this._fixJumpToOffsets(this.global, ctx);
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
       this._fixLabels(fn, ctx);
@@ -313,10 +317,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
     let currentCodeOffset = 0;
 
-    for (const inst of this.global.instructions) {
-      currentCodeOffset += inst.sizeof + CTRMemory.U32_SIZE;
-    }
-
     for (const fn of Array.from(this.functions.values()).reverse()) {
       fixCodeStartOffset(fn, null);
     }
@@ -331,14 +331,14 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
       fn.codeStart = currentCodeOffset;
 
-      if(inst !== null) {
+      if (inst !== null) {
         currentCodeOffset +=
-        CTRMemory.U32_SIZE +
-        CTRMemory.U32_SIZE +
-        CTRMemory.U32_SIZE +
-        CTRMemory.U32_SIZE +
-        inst.give.length * CTRMemory.U32_SIZE +
-        inst.take.length * CTRMemory.U32_SIZE;
+          CTRMemory.U32_SIZE +
+          CTRMemory.U32_SIZE +
+          CTRMemory.U32_SIZE +
+          CTRMemory.U32_SIZE +
+          inst.give.length * CTRMemory.U32_SIZE +
+          inst.take.length * CTRMemory.U32_SIZE;
       }
 
       for (const inst of fn.instructions) {
@@ -561,11 +561,20 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._section3 = this._buildUnknownSection(buffer, this.unknown1, ctx);
+    buffer.u32(this.tables.size);
+
+    for (const table of this.tables.values()) {
+      table.build(buffer, ctx);
+    }
   }
 
   private _parseSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._parseUnknownSection(buffer, this.unknown1, this._section4, ctx);
+    const count = buffer.u32();
+
+    for (let i = 0; i < count; i += 1) {
+      const table = new SigilKSMTable().parse(buffer, ctx);
+      this.tables.set(table.id, table);
+    }
   }
 
   private _buildSection4(buffer: CTRMemory, ctx: SigilKSMContext): void {
@@ -612,7 +621,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.u32(0x00000000);
 
     ctx.codeOffset = buffer.offset;
-    this.buildFunctionCode(buffer, ctx, this.global);
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
       if (!fn.threadfn) {
@@ -626,28 +634,94 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.seek(this._section7).u32(diff / 4);
   }
 
+  private _parseTableValues(
+    buffer: CTRMemory,
+    ctx: SigilKSMContext,
+    table: SigilKSMTable
+  ): void {
+    if (ctx.seen.has(table)) {
+      throw "what are you doing lil bro?";
+    }
+
+    ctx.seen.add(table);
+    throw "not working at " + buffer.offset;
+  }
+
   private _parseSection7(buffer: CTRMemory, ctx: SigilKSMContext): void {
     const count = buffer.u32() * 4;
     ctx.codeOffset = buffer.offset;
 
-    const functions = Array.from(this.functions.values());
+    const functionsAndTables = Array.from([
+      ...this.tables.values(),
+      ...this.functions.values()
+    ]);
 
-    const firstFunctionCodeStart = functions
-      .sort((a, b) => a.codeStart - b.codeStart)
-      .at(0)!.codeStart;
+    functionsAndTables.sort((a, b) => {
+      const aStart = a instanceof SigilKSMFunction ? a.codeStart : a.startOffset;
+      const bStart = b instanceof SigilKSMFunction ? b.codeStart : b.startOffset;
 
-    this.parseFunctionCode(buffer, ctx, this.global, firstFunctionCodeStart);
+      return aStart - bStart;
+    });
 
-    while (ctx.seen.size < functions.length) {
-      const fn = functions.find(
-        (fn) => fn.codeStart === buffer.offset - ctx.codeOffset
-      );
+    while (ctx.seen.size < functionsAndTables.length) {
+      const fnOrTable = functionsAndTables.shift();
 
-      if (fn === undefined) {
-        throw "ksm.err_malformed_file";
+      if (fnOrTable === undefined) {
+        break;
       }
 
-      this.parseFunctionCode(buffer, ctx, fn, fn.codeEnd - fn.codeStart);
+      const relativeStart =
+        fnOrTable instanceof SigilKSMFunction
+          ? fnOrTable.codeStart
+          : fnOrTable.startOffset;
+
+      const absoluteStart = relativeStart + ctx.codeOffset;
+
+      console.log(
+        `PARSING ROUTINE FOR ${fnOrTable.name} (${fnOrTable.constructor.name})`
+      );
+
+      console.log(`start: ${absoluteStart} (r: ${relativeStart})`);
+
+      console.log(
+        `current: ${buffer.offset} (r: ${buffer.offset - ctx.codeOffset})`
+      );
+
+      console.log("\n");
+
+      // were not at the start of this function so parse
+      // the code until then into a global function
+      if (buffer.offset !== absoluteStart) {
+        const globalfn = new SigilKSMFunction();
+
+        globalfn.name = "SIGIL_GLOBAL";
+        globalfn.codeStart = buffer.offset - ctx.codeOffset;
+
+        this.parseFunctionCode(
+          buffer,
+          ctx,
+          globalfn,
+          absoluteStart - buffer.offset,
+          true
+        );
+      }
+
+      if (buffer.offset !== absoluteStart) {
+        throw "what?";
+      }
+
+      if (fnOrTable instanceof SigilKSMFunction) {
+        this.parseFunctionCode(
+          buffer,
+          ctx,
+          fnOrTable,
+          fnOrTable.codeEnd - fnOrTable.codeStart
+        );
+
+        continue;
+      }
+
+      this._parseTableValues(buffer, ctx, fnOrTable);
     }
 
     // capture unknown remaining bytes...

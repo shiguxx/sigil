@@ -1,5 +1,6 @@
 import { CTRMemory } from "libctr";
 import { SigilKSMLabel } from "#ksm/ksm-label";
+import { SigilKSMTable } from "#ksm/ksm-table";
 import { SigilKSMVariable } from "#ksm/ksm-variable";
 import type { SigilKSMContext } from "#ksm/ksm-context";
 import { SigilKSMNamedCommand } from "#ksm/ksm-named-command";
@@ -16,6 +17,7 @@ class SigilKSMFunction extends SigilKSMNamedCommand {
 
   public threadfn: boolean;
   public readonly labels: Map<number, SigilKSMLabel>;
+  public readonly tables: Map<number, SigilKSMTable>;
   public readonly instructions: SigilKSMInstruction[];
   public readonly variables: Map<number, SigilKSMVariable>;
 
@@ -33,6 +35,7 @@ class SigilKSMFunction extends SigilKSMNamedCommand {
 
     this.instructions = [];
     this.labels = new Map();
+    this.tables = new Map();
     this.variables = new Map();
   }
 
@@ -97,13 +100,15 @@ class SigilKSMFunction extends SigilKSMNamedCommand {
 
     const tableCount = buffer.u32();
 
-    if (tableCount !== 0) {
-      throw "ksm.err_table";
+    for (let i = 0; i < tableCount; i += 1) {
+
+      const table = new SigilKSMTable().parse(buffer, ctx);
+      this.tables.set(table.id, table);
     }
 
     const labelCount = buffer.u32();
 
-    if (labelCount !== 0) {
+    for (let i = 0; i < labelCount; i += 1) {
       const label = new SigilKSMLabel().parse(buffer, ctx);
       this.labels.set(label.id, label);
     }
