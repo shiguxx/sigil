@@ -320,6 +320,18 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
         return "&&";
       case "div":
         return "/";
+      case "mod":
+        return "%";
+      case "bwo":
+        return "|";
+      case "bwa":
+        return "&";
+      case "bwx":
+        return "^";
+      case "bsl":
+        return "<<";
+      case "bsr":
+        return ">>";
       case "eq":
         return "==";
       case "gt":
@@ -942,6 +954,18 @@ function _import(
         expr.push(new SigilKSMIntrinsic("and"));
       } else if (el === "/") {
         expr.push(new SigilKSMIntrinsic("div"));
+      } else if (el === "%") {
+        expr.push(new SigilKSMIntrinsic("mod"));
+      } else if (el === "|") {
+        expr.push(new SigilKSMIntrinsic("bwo"));
+      } else if (el === "&") {
+        expr.push(new SigilKSMIntrinsic("bwa"));
+      } else if (el === "^") {
+        expr.push(new SigilKSMIntrinsic("bwx"));
+      } else if (el === "<<") {
+        expr.push(new SigilKSMIntrinsic("bsl"));
+      } else if (el === ">>") {
+        expr.push(new SigilKSMIntrinsic("bsr"));
       } else if (el === "==") {
         expr.push(new SigilKSMIntrinsic("eq"));
       } else if (el === ">") {

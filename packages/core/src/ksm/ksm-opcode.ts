@@ -36,6 +36,13 @@ enum SigilKSMOpCode {
   OPCODE_RIGHT_PAREN = 0x42,
   OPCODE_OR = 0x43,
   OPCODE_AND = 0x44,
+  
+  OPCODE_BWOR = 0x45,
+  OPCODE_BWAND = 0x46,
+  OPCODE_BWXOR = 0x47,
+  OPCODE_LSHFT = 0x48,
+  OPCODE_RSHFT = 0x49,
+  
   OPCODE_EQ = 0x4a,
   OPCODE_NEQ = 0x4b,
   OPCODE_GT = 0x4c,
@@ -43,12 +50,11 @@ enum SigilKSMOpCode {
   OPCODE_GTE = 0x4e,
   OPCODE_LTE = 0x4f,
 
+  OPCODE_MOD = 0x52,
   OPCODE_ADD = 0x53,
   OPCODE_SUB = 0x54,
   OPCODE_MUL = 0x55,
-  OPCODE_DIV = 0x56,
-
-  OPCODE_UNKNOWN_INSTRISIC0 = 0x45
+  OPCODE_DIV = 0x56
 }
 
 export { SigilKSMOpCode, SigilKSMOpCode as KSMOpCode };

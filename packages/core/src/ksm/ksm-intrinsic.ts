@@ -18,7 +18,12 @@ type SigilKSMIntrinsicType =
   | "left_paren"
   | "right_paren"
   | "next_function"
-  | SigilKSMOpCode.OPCODE_UNKNOWN_INSTRISIC0;
+  | "bwo"
+  | "bwa"
+  | "bwx"
+  | "bsl"
+  | "bsr"
+  | "mod";
 
 class SigilKSMIntrinsic extends SigilKSMInstruction {
   public type: SigilKSMIntrinsicType;
@@ -64,6 +69,18 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
         return SigilKSMOpCode.OPCODE_RIGHT_PAREN;
       case "next_function":
         return SigilKSMOpCode.OPCODE_NEXT_FUNCTION;
+      case "bwo":
+        return SigilKSMOpCode.OPCODE_BWOR;
+      case "bwa":
+        return SigilKSMOpCode.OPCODE_BWAND;
+      case "bwx":
+        return SigilKSMOpCode.OPCODE_BWXOR;
+      case "bsl":
+        return SigilKSMOpCode.OPCODE_LSHFT;
+      case "bsr":
+        return SigilKSMOpCode.OPCODE_RSHFT;
+      case "mod":
+        return SigilKSMOpCode.OPCODE_MOD;
       default:
         return this.type;
     }
@@ -116,8 +133,23 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
       case SigilKSMOpCode.OPCODE_NEXT_FUNCTION:
         this.type = "next_function";
         break;
-      case SigilKSMOpCode.OPCODE_UNKNOWN_INSTRISIC0:
-        this.type = SigilKSMOpCode.OPCODE_UNKNOWN_INSTRISIC0;
+      case SigilKSMOpCode.OPCODE_BWOR:
+        this.type = "bwo";
+        break;
+      case SigilKSMOpCode.OPCODE_BWAND:
+        this.type = "bwa";
+        break;
+      case SigilKSMOpCode.OPCODE_BWXOR:
+        this.type = "bwx";
+        break;
+      case SigilKSMOpCode.OPCODE_LSHFT:
+        this.type = "bsl";
+        break;
+      case SigilKSMOpCode.OPCODE_RSHFT:
+        this.type = "bsr";
+        break;
+      case SigilKSMOpCode.OPCODE_MOD:
+        this.type = "mod";
         break;
       default:
         throw new Error("bad intristic " + opcode);
