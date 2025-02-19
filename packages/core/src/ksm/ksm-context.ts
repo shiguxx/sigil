@@ -53,14 +53,24 @@ class SigilKSMContext {
       return im;
     }
 
-    throw new Error("Unknown function with ID" + id);
+    throw new Error("Unknown function with ID 0x" + id);
+  }
+
+  public im(id: number): SigilKSMImport {
+    const im = this.script.imports.get(id);
+
+    if (im === undefined) {
+      throw new Error("Unknown im with ID 0x" + id.toString(16));
+    }
+
+    return im;
   }
 
   public var(id: number): SigilKSMVariable {
     const va = this._scope.get(id) || this.script.variables.get(id);
 
     if (va === undefined) {
-      throw new Error("Unknown variable with ID " + id.toString(16));
+      throw new Error("Unknown variable with ID 0x" + id.toString(16));
     }
 
     return va;

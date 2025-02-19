@@ -32,6 +32,10 @@ import { SigilKSMThreadInstruction } from "./ksm-thread-cmd";
 import { SigilKSMDoWhileInstruction } from "./ksm-dowhile-instruction";
 import { SigilKSMEndDoWhileInstruction } from "./ksm-end-dowhile-instruction";
 import { SigilKSMTable } from "./ksm-table";
+import { SigilKSMCallAsThreadInstruction } from "./ksm-call-as-thread-instruction";
+import { SigilKSMUnsure2Instruction } from "./ksm-unsure2";
+import { SigilKSMBreakInstruction } from "./ksm-break-instruction";
+import { SigilKSMUnsure3Instruction } from "./ksm-unsure3";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -128,6 +132,14 @@ class SigilKSM extends CTRBinarySerializable<never> {
         return new SigilKSMThread2Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_WAIT_MS:
         return new SigilKSMWaitMSInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE3:
+        return new SigilKSMUnsure3Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_BREAK:
+        return new SigilKSMBreakInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE2:
+        return new SigilKSMUnsure2Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_CALL_AS_THREAD:
+        return new SigilKSMCallAsThreadInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_GET_ARGS:
         return new SigilKSMGetArgsInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_UNSURE0:
@@ -714,7 +726,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
       // were not at the start of this function so parse
       // the code until then into a global function
-      if (buffer.offset !== absoluteStart) {
+      if (buffer.offset < absoluteStart) {
         const globalfn = new SigilKSMFunction();
 
         globalfn.name = "SIGIL_GLOBAL";
@@ -727,6 +739,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
           absoluteStart - buffer.offset,
           true
         );
+
       }
 
       if (buffer.offset !== absoluteStart) {
