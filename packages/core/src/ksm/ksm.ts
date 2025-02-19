@@ -200,42 +200,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   protected override _build(buffer: CTRMemory): void {
-    let codeOffset = this.global.instructions
-      .map((i) => i.sizeof + CTRMemory.U32_SIZE)
-      .reduce((p, c) => p + c, 0);
-
-    const seen = new Set<SigilKSMFunction>();
-
-    for (const fn of Array.from(this.functions.values()).reverse()) {
-      if (seen.has(fn)) {
-        continue;
-      }
-
-      seen.add(fn);
-      fn.codeStart = codeOffset;
-
-      for (const instruction of fn.instructions) {
-        if (
-          (instruction instanceof SigilKSMThreadInstruction ||
-            instruction instanceof SigilKSMThread2Instruction) &&
-          instruction.callee instanceof SigilKSMFunction
-        ) {
-          instruction.callee.codeStart = codeOffset;
-
-          instruction.callee.codeEnd =
-            instruction.callee.codeStart + instruction.sizeof + CTRMemory.U32_SIZE;
-
-          codeOffset = instruction.callee.codeEnd;
-
-          seen.add(instruction.callee);
-          continue;
-        }
-
-        codeOffset += instruction.sizeof + CTRMemory.U32_SIZE;
-      }
-
-      fn.codeEnd = codeOffset;
-    }
+    this._fixCodeStartOffsets();
 
     const start = buffer.offset;
     const ctx = new SigilKSMContext(this);
@@ -340,6 +305,58 @@ class SigilKSM extends CTRBinarySerializable<never> {
           labelCounter += 1;
         }
       }
+    }
+  }
+
+  private _fixCodeStartOffsets(): void {
+    const seen = new Set<SigilKSMFunction>();
+
+    let currentCodeOffset = 0;
+
+    for (const inst of this.global.instructions) {
+      currentCodeOffset += inst.sizeof + CTRMemory.U32_SIZE;
+    }
+
+    for (const fn of Array.from(this.functions.values()).reverse()) {
+      fixCodeStartOffset(fn, null);
+    }
+
+    function fixCodeStartOffset(
+      fn: SigilKSMFunction,
+      inst: null | SigilKSMThreadInstruction | SigilKSMThread2Instruction
+    ): void {
+      if (seen.has(fn)) {
+        return;
+      }
+
+      fn.codeStart = currentCodeOffset;
+
+      if(inst !== null) {
+        currentCodeOffset +=
+        CTRMemory.U32_SIZE +
+        CTRMemory.U32_SIZE +
+        CTRMemory.U32_SIZE +
+        CTRMemory.U32_SIZE +
+        inst.give.length * CTRMemory.U32_SIZE +
+        inst.take.length * CTRMemory.U32_SIZE;
+      }
+
+      for (const inst of fn.instructions) {
+        if (
+          inst instanceof SigilKSMThreadInstruction ||
+          inst instanceof SigilKSMThread2Instruction
+        ) {
+          if (inst.callee instanceof SigilKSMFunction) {
+            fixCodeStartOffset(inst.callee, inst);
+            continue;
+          }
+        }
+
+        currentCodeOffset += inst.sizeof + CTRMemory.U32_SIZE;
+      }
+
+      fn.codeEnd = currentCodeOffset;
+      seen.add(fn);
     }
   }
 

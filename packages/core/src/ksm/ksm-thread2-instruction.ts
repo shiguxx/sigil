@@ -82,16 +82,6 @@ class SigilKSMThread2Instruction extends SigilKSMInstruction {
         this.give.length * CTRMemory.U32_SIZE + // give
         this.take.length * CTRMemory.U32_SIZE; // take
 
-      const absoluteCodeStart =
-        ctx.codeOffset +
-        thisInstructionSize +
-        this.caller.codeStart + // relative offset to global code start
-        this.callee.codeStart; // relative offset to caller's code start
-
-      if (buffer.offset !== absoluteCodeStart) {
-        throw "ksm.err_malformed_file";
-      }
-
       this.callee.threadfn = true;
 
       ctx.script.parseFunctionCode(
