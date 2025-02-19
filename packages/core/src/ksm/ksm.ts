@@ -644,7 +644,30 @@ class SigilKSM extends CTRBinarySerializable<never> {
     }
 
     ctx.seen.add(table);
-    throw "not working at " + buffer.offset;
+
+    const opening = buffer.u32();
+
+    if (opening !== 0x63 && opening !== 0x64 && opening !== 0x65) {
+      throw new Error("invalid opening code");
+    }
+
+    for (let i = 0; i < table.length; i += 1) {
+      if (table.type === "int") {
+        table.values.push(buffer.i32());
+      } else if (table.type === "byte") {
+        table.values.push(buffer.u8());
+      } else if (table.type === "float") {
+        table.values.push(buffer.f32());
+      } else if (table.type === "variable") {
+        table.values.push(ctx.var(buffer.u32()));
+      } else {
+        throw new Error("Invalid table type " + table.type);
+      }
+    }
+
+    if (buffer.u32() !== 0x66) {
+      throw new Error("invalid closing code");
+    }
   }
 
   private _parseSection7(buffer: CTRMemory, ctx: SigilKSMContext): void {

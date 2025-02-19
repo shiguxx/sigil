@@ -1,5 +1,6 @@
 import { CTRMemory } from "libctr";
 import { SigilKSMNamedCommand } from "#ksm/ksm-named-command";
+import { SigilKSMVariable } from "./ksm-variable";
 
 type SigilKSMTableType = "int" | "byte" | "float" | "variable" | number;
 
@@ -15,7 +16,7 @@ class SigilKSMTable extends SigilKSMNamedCommand {
   public length: number;
   public unknown0: number;
   public startOffset: number;
-  public value: number | string;
+  public readonly values: (number | SigilKSMVariable)[];
 
   public constructor() {
     super();
@@ -23,10 +24,11 @@ class SigilKSMTable extends SigilKSMNamedCommand {
 
     this.id = 0;
     this.flags = 0;
-    this.value = 0;
     this.length = 0;
     this.unknown0 = 0;
     this.startOffset = 0;
+
+    this.values = [];
   }
 
   public get type(): SigilKSMTableType {
@@ -77,7 +79,6 @@ class SigilKSMTable extends SigilKSMNamedCommand {
     // includes count at start of section 7, this is bad.
     // other offsets don't.
     this.startOffset = (buffer.u32() - 1) * 4;
-
     this._parsename(buffer, incomprehensible);
   }
 }
