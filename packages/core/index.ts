@@ -165,8 +165,6 @@ const IKSMInstruction = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("KSMUnsure3"),
     unknown0: z.string(),
-    unknown1: z.string(),
-    unknown2: z.string()
   }),
   z.object({
     type: z.literal("KSMIf"),
@@ -390,8 +388,6 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
   if (symbol instanceof SigilKSMUnsure3Instruction) {
     object.type = "KSMUnsure3";
     object.unknown0 = _export(symbol.unknown0);
-    object.unknown1 = _export(symbol.unknown1);
-    object.unknown2 = _export(symbol.unknown2);
 
     return object;
   }
@@ -819,10 +815,7 @@ function _import(
 
   if (symbol.type === "KSMUnsure3") {
     const object = new SigilKSMUnsure3Instruction();
-
-    object.unknown1 = <SigilKSMImport>_import(fn, script, symbol.unknown1);
     object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
-    object.unknown2 = <SigilKSMVariable>_import(fn, script, symbol.unknown2);
 
     return object;
   }
