@@ -73,7 +73,10 @@ class SigilKSMTable extends SigilKSMNamedCommand {
 
     this.type = buffer.u32();
     this.length = buffer.u32();
-    this.startOffset = buffer.u32() * 4;
+
+    // includes count at start of section 7, this is bad.
+    // other offsets don't.
+    this.startOffset = (buffer.u32() - 1) * 4;
 
     this._parsename(buffer, incomprehensible);
   }
