@@ -69,7 +69,7 @@ class SigilKSMTable extends SigilKSMNamedCommand {
     buffer.u32(this._type);
 
     buffer.u32(this.length);
-    buffer.u32(this.startOffset / 4 - 1);
+    buffer.u32((this.startOffset / 4) + 1);
 
     this._buildname(buffer);
   }

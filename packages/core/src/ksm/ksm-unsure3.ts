@@ -20,7 +20,7 @@ class SigilKSMUnsure3Instruction extends SigilKSMInstruction {
   }
 
   public override get opcode(): number {
-    return SigilKSMOpCode.OPCODE_UNSURE4;
+    return SigilKSMOpCode.OPCODE_UNSURE3;
   }
 
   protected _build(buffer: CTRMemory): void {

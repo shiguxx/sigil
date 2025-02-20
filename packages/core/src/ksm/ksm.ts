@@ -39,6 +39,8 @@ import { SigilKSMUnsure3Instruction } from "./ksm-unsure3";
 import { SigilKSMCase2Instruction } from "./ksm-case2-instruction";
 import { SigilKSMBreakSwitchInstruction } from "./ksm-break-switch-instruction";
 import { SigilKSMUnsure4Instruction } from "./ksm-unsure4-instruction";
+import { SigilKSMReadTableLengthInstruction } from "./ksm-read-table-length-instruction";
+import { SigilKSMUnsure5Instruction } from "./ksm-unsure5";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -107,6 +109,10 @@ class SigilKSM extends CTRBinarySerializable<never> {
     ctx.const = (raw & 0x100) !== 0;
 
     switch (ctx.opcode) {
+      case SigilKSMOpCode.OPCODE_UNSURE5:
+        return new SigilKSMUnsure5Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_READ_TABLE_LENGTH:
+        return new SigilKSMReadTableLengthInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_UNSURE4:
         return new SigilKSMUnsure4Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_BREAK_SWITCH:
@@ -342,7 +348,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
     }
 
     for (const ta of Array.from(this.tables.values())) {
-      currentCodeOffset += 4;
       ta.startOffset = currentCodeOffset;
 
       if (ta.type === "byte") {
@@ -356,7 +361,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
       }
 
       currentCodeOffset = CTRMemory.align(currentCodeOffset, 4);
-      currentCodeOffset += 4;
+      currentCodeOffset += 8;
     }
 
     function fixCodeStartOffset(
@@ -479,7 +484,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
           const nextInstruction = fn.instructions[i]!;
 
           if (
-            nextInstruction instanceof SigilKSMCaseInstruction &&
+            (nextInstruction instanceof SigilKSMCaseInstruction ||
+              nextInstruction instanceof SigilKSMCase2Instruction) &&
             jumpToOffset == 0
           ) {
             jumpToOffset =
@@ -807,6 +813,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
           : fnOrTable.startOffset;
 
       const absoluteStart = relativeStart + ctx.codeOffset;
+      console.log(buffer.offset, absoluteStart, fnOrTable.name);
 
       // were not at the start of this function so parse
       // the code until then into a global function
@@ -864,8 +871,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
     buffer.u32(variables.length);
 
-    for (const variable of variables) {
-      variable.build(buffer, ctx);
+    for (const va of variables) {
+      va.build(buffer, ctx);
     }
 
     return offset;

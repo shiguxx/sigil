@@ -25,11 +25,13 @@ class SigilKSMContext {
   public readonly seen: Set<SigilKSMTable | SigilKSMFunction>;
 
   private readonly _labels: Map<number, SigilKSMLabel>;
+  private readonly _tables: Map<number, SigilKSMTable>;
   private readonly _scope: Map<number, SigilKSMVariable>;
 
   public constructor(script: SigilKSM) {
     this._scope = new Map();
     this._labels = new Map();
+    this._tables = new Map();
 
     this.opcode = 0;
     this.const = false;
@@ -64,6 +66,16 @@ class SigilKSMContext {
     }
 
     return im;
+  }
+
+  public ta(id: number): SigilKSMTable {
+    const ta = this._tables.get(id) || this.script.tables.get(id);
+
+    if (ta === undefined) {
+      throw new Error("Unknown table with ID 0x" + id.toString(16));
+    }
+
+    return ta;
   }
 
   public var(id: number): SigilKSMVariable {
@@ -137,6 +149,10 @@ class SigilKSMContext {
 
     for (const [id, label] of fn.labels) {
       clone._labels.set(id, label);
+    }
+
+    for (const [id, table] of fn.tables) {
+      clone._tables.set(id, table);
     }
 
     for (const [id, variable] of fn.variables) {
