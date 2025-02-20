@@ -609,6 +609,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
+    this._section3 = buffer.offset;
     buffer.u32(this.tables.size);
 
     for (const table of this.tables.values()) {
