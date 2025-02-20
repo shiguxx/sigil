@@ -3,36 +3,36 @@ import { SigilKSMInstruction } from "#ksm/ksm-instruction";
 import { SigilKSMOpCode } from "#ksm/ksm-opcode";
 
 type SigilKSMIntrinsicType =
-  | "eq"
-  | "gt"
-  | "lt"
-  | "or"
-  | "add"
-  | "and"
-  | "div"
-  | "gte"
-  | "lte"
-  | "mul"
-  | "neq"
-  | "sub"
-  | "left_paren"
-  | "right_paren"
-  | "next_function"
-  | "bwo"
-  | "bwa"
-  | "bwx"
-  | "bsl"
-  | "bsr"
-  | "mod"
-  | "inc"
-  | "dec";
+  | "=="
+  | ">"
+  | "<"
+  | "||"
+  | "+"
+  | "&&"
+  | "/"
+  | ">="
+  | "<="
+  | "*"
+  | "!="
+  | "-"
+  | "("
+  | ")"
+  | "next"
+  | "|"
+  | "&"
+  | "^"
+  | "<<"
+  | ">>"
+  | "%"
+  | "++"
+  | "--";
 
 class SigilKSMIntrinsic extends SigilKSMInstruction {
   public type: SigilKSMIntrinsicType;
 
   public constructor(type?: SigilKSMIntrinsicType) {
     super();
-    this.type = type || "next_function";
+    this.type = type || "next";
   }
 
   public override get const(): boolean {
@@ -41,51 +41,51 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
 
   public override get opcode(): number {
     switch (this.type) {
-      case "eq":
+      case "==":
         return SigilKSMOpCode.OPCODE_EQ;
-      case "gt":
+      case ">":
         return SigilKSMOpCode.OPCODE_GT;
-      case "lt":
+      case "<":
         return SigilKSMOpCode.OPCODE_LT;
-      case "or":
+      case "||":
         return SigilKSMOpCode.OPCODE_OR;
-      case "add":
+      case "+":
         return SigilKSMOpCode.OPCODE_ADD;
-      case "and":
+      case "&&":
         return SigilKSMOpCode.OPCODE_AND;
-      case "div":
+      case "/":
         return SigilKSMOpCode.OPCODE_DIV;
-      case "gte":
+      case ">=":
         return SigilKSMOpCode.OPCODE_GTE;
-      case "lte":
+      case "<=":
         return SigilKSMOpCode.OPCODE_LTE;
-      case "mul":
+      case "*":
         return SigilKSMOpCode.OPCODE_MUL;
-      case "neq":
+      case "!=":
         return SigilKSMOpCode.OPCODE_NEQ;
-      case "sub":
+      case "-":
         return SigilKSMOpCode.OPCODE_SUB;
-      case "left_paren":
+      case "(":
         return SigilKSMOpCode.OPCODE_LEFT_PAREN;
-      case "right_paren":
+      case ")":
         return SigilKSMOpCode.OPCODE_RIGHT_PAREN;
-      case "next_function":
+      case "next":
         return SigilKSMOpCode.OPCODE_NEXT_FUNCTION;
-      case "bwo":
+      case "|":
         return SigilKSMOpCode.OPCODE_BWOR;
-      case "bwa":
+      case "&":
         return SigilKSMOpCode.OPCODE_BWAND;
-      case "bwx":
+      case "^":
         return SigilKSMOpCode.OPCODE_BWXOR;
-      case "bsl":
+      case "<<":
         return SigilKSMOpCode.OPCODE_LSHFT;
-      case "bsr":
+      case ">>":
         return SigilKSMOpCode.OPCODE_RSHFT;
-      case "mod":
+      case "%":
         return SigilKSMOpCode.OPCODE_MOD;
-      case "dec":
+      case "--":
         return SigilKSMOpCode.OPCODE_DEC;
-      case "inc":
+      case "++":
         return SigilKSMOpCode.OPCODE_INC;
       default:
         return this.type;
@@ -95,73 +95,73 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
   public override set opcode(opcode: number) {
     switch (opcode) {
       case SigilKSMOpCode.OPCODE_EQ:
-        this.type = "eq";
+        this.type = "==";
         break;
       case SigilKSMOpCode.OPCODE_GT:
-        this.type = "gt";
+        this.type = ">";
         break;
       case SigilKSMOpCode.OPCODE_LT:
-        this.type = "lt";
+        this.type = "<";
         break;
       case SigilKSMOpCode.OPCODE_OR:
-        this.type = "or";
+        this.type = "||";
         break;
       case SigilKSMOpCode.OPCODE_ADD:
-        this.type = "add";
+        this.type = "+";
         break;
       case SigilKSMOpCode.OPCODE_AND:
-        this.type = "and";
+        this.type = "&&";
         break;
       case SigilKSMOpCode.OPCODE_DIV:
-        this.type = "div";
+        this.type = "/";
         break;
       case SigilKSMOpCode.OPCODE_GTE:
-        this.type = "gte";
+        this.type = ">=";
         break;
       case SigilKSMOpCode.OPCODE_LTE:
-        this.type = "lte";
+        this.type = "<=";
         break;
       case SigilKSMOpCode.OPCODE_MUL:
-        this.type = "mul";
+        this.type = "*";
         break;
       case SigilKSMOpCode.OPCODE_NEQ:
-        this.type = "neq";
+        this.type = "!=";
         break;
       case SigilKSMOpCode.OPCODE_SUB:
-        this.type = "sub";
+        this.type = "-";
         break;
       case SigilKSMOpCode.OPCODE_LEFT_PAREN:
-        this.type = "left_paren";
+        this.type = "(";
         break;
       case SigilKSMOpCode.OPCODE_RIGHT_PAREN:
-        this.type = "right_paren";
+        this.type = ")";
         break;
       case SigilKSMOpCode.OPCODE_NEXT_FUNCTION:
-        this.type = "next_function";
+        this.type = "next";
         break;
       case SigilKSMOpCode.OPCODE_BWOR:
-        this.type = "bwo";
+        this.type = "|";
         break;
       case SigilKSMOpCode.OPCODE_BWAND:
-        this.type = "bwa";
+        this.type = "&";
         break;
       case SigilKSMOpCode.OPCODE_BWXOR:
-        this.type = "bwx";
+        this.type = "^";
         break;
       case SigilKSMOpCode.OPCODE_LSHFT:
-        this.type = "bsl";
+        this.type = "<<";
         break;
       case SigilKSMOpCode.OPCODE_RSHFT:
-        this.type = "bsr";
+        this.type = ">>";
         break;
       case SigilKSMOpCode.OPCODE_MOD:
-        this.type = "mod";
+        this.type = "%";
         break;
       case SigilKSMOpCode.OPCODE_DEC:
-        this.type = "dec";
+        this.type = "--";
         break;
       case SigilKSMOpCode.OPCODE_INC:
-        this.type = "inc";
+        this.type = "++";
         break;
       default:
         throw new Error("bad intristic " + opcode);

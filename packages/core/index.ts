@@ -346,47 +346,47 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
 
   if (symbol instanceof SigilKSMIntrinsic) {
     switch (symbol.type) {
-      case "add":
+      case "+":
         return "+";
-      case "sub":
+      case "-":
         return "-";
-      case "and":
+      case "&&":
         return "&&";
-      case "div":
+      case "/":
         return "/";
-      case "mod":
+      case "%":
         return "%";
-      case "bwo":
+      case "|":
         return "|";
-      case "bwa":
+      case "&":
         return "&";
-      case "bwx":
+      case "^":
         return "^";
-      case "bsl":
+      case "<<":
         return "<<";
-      case "bsr":
+      case ">>":
         return ">>";
-      case "eq":
+      case "==":
         return "==";
-      case "gt":
+      case ">":
         return ">";
-      case "gte":
+      case ">=":
         return ">=";
-      case "left_paren":
+      case "(":
         return "(";
-      case "lt":
+      case "<":
         return "<";
-      case "lte":
+      case "<=":
         return "<=";
-      case "mul":
+      case "*":
         return "*";
-      case "neq":
+      case "!=":
         return "!=";
-      case "next_function":
+      case "next":
         return "next";
-      case "or":
+      case "||":
         return "||";
-      case "right_paren":
+      case ")":
         return ")";
       default:
         return symbol.type;
@@ -1148,47 +1148,47 @@ function _import(
 
     for (const el of symbol) {
       if (el === "+") {
-        expr.push(new SigilKSMIntrinsic("add"));
+        expr.push(new SigilKSMIntrinsic("+"));
       } else if (el === "-") {
-        expr.push(new SigilKSMIntrinsic("sub"));
+        expr.push(new SigilKSMIntrinsic("-"));
       } else if (el === "&&") {
-        expr.push(new SigilKSMIntrinsic("and"));
+        expr.push(new SigilKSMIntrinsic("&&"));
       } else if (el === "/") {
-        expr.push(new SigilKSMIntrinsic("div"));
+        expr.push(new SigilKSMIntrinsic("/"));
       } else if (el === "%") {
-        expr.push(new SigilKSMIntrinsic("mod"));
+        expr.push(new SigilKSMIntrinsic("%"));
       } else if (el === "|") {
-        expr.push(new SigilKSMIntrinsic("bwo"));
+        expr.push(new SigilKSMIntrinsic("|"));
       } else if (el === "&") {
-        expr.push(new SigilKSMIntrinsic("bwa"));
+        expr.push(new SigilKSMIntrinsic("&"));
       } else if (el === "^") {
-        expr.push(new SigilKSMIntrinsic("bwx"));
+        expr.push(new SigilKSMIntrinsic("^"));
       } else if (el === "<<") {
-        expr.push(new SigilKSMIntrinsic("bsl"));
+        expr.push(new SigilKSMIntrinsic("<<"));
       } else if (el === ">>") {
-        expr.push(new SigilKSMIntrinsic("bsr"));
+        expr.push(new SigilKSMIntrinsic(">>"));
       } else if (el === "==") {
-        expr.push(new SigilKSMIntrinsic("eq"));
+        expr.push(new SigilKSMIntrinsic("=="));
       } else if (el === ">") {
-        expr.push(new SigilKSMIntrinsic("gt"));
+        expr.push(new SigilKSMIntrinsic(">"));
       } else if (el === ">=") {
-        expr.push(new SigilKSMIntrinsic("gte"));
+        expr.push(new SigilKSMIntrinsic(">="));
       } else if (el === "(") {
-        expr.push(new SigilKSMIntrinsic("left_paren"));
+        expr.push(new SigilKSMIntrinsic("("));
       } else if (el === "<") {
-        expr.push(new SigilKSMIntrinsic("lt"));
+        expr.push(new SigilKSMIntrinsic("<"));
       } else if (el === "<=") {
-        expr.push(new SigilKSMIntrinsic("lte"));
+        expr.push(new SigilKSMIntrinsic("<="));
       } else if (el === "*") {
-        expr.push(new SigilKSMIntrinsic("mul"));
+        expr.push(new SigilKSMIntrinsic("*"));
       } else if (el === "!=") {
-        expr.push(new SigilKSMIntrinsic("neq"));
+        expr.push(new SigilKSMIntrinsic("!="));
       } else if (el === "next") {
-        expr.push(new SigilKSMIntrinsic("next_function"));
+        expr.push(new SigilKSMIntrinsic("next"));
       } else if (el === "||") {
-        expr.push(new SigilKSMIntrinsic("or"));
+        expr.push(new SigilKSMIntrinsic("||"));
       } else if (el === ")") {
-        expr.push(new SigilKSMIntrinsic("right_paren"));
+        expr.push(new SigilKSMIntrinsic(")"));
       } else if (typeof el === "object") {
         // KSMCall
         expr.push(_import(fn, script, el));
