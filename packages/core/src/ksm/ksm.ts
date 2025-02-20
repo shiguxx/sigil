@@ -585,7 +585,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.u32(this.functions.size);
 
     for (const fn of this.functions.values()) {
-      if(fn.name !== SIGIL_KSM_GLOBAL_FUNCTION_NAME) {
+      if (fn.name !== SIGIL_KSM_GLOBAL_FUNCTION_NAME) {
         fn.build(buffer, ctx);
       }
     }
