@@ -325,13 +325,13 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _fixLabels(fn: SigilKSMFunction, ctx: SigilKSMContext): void {
-    const labels = Array.from(fn.labels.values());
-    labels.reverse();
-
     let i = 0;
 
     for (const instruction of fn.instructions.values()) {
       if (instruction instanceof SigilKSMLabelInstruction) {
+        const labels = Array.from(fn.labels.values());
+        labels.reverse();
+
         const label = labels[i];
 
         if (label === undefined) {
@@ -340,6 +340,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
         label.address =
           (instruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE) / 4;
+
+        i += 1;
       }
     }
   }
