@@ -89,6 +89,25 @@ import {
   KSMThreadInstruction,
   SigilKSMThreadInstruction
 } from "#ksm/ksm-thread-cmd";
+import {
+  KSMBreakInstruction,
+  SigilKSMBreakInstruction
+} from "#ksm/ksm-break-instruction";
+import { SigilKSMUnsure3Instruction } from "#ksm/ksm-unsure3";
+import { SigilKSMUnsure2Instruction } from "#ksm/ksm-unsure2";
+import {
+  KSMCallAsThreadInstruction,
+  SigilKSMCallAsThreadInstruction
+} from "#ksm/ksm-call-as-thread-instruction";
+import { SigilKSMTable } from "#ksm/ksm-table";
+import { SigilKSMUnsure5Instruction } from "#ksm/ksm-unsure5";
+import { SigilKSMCase2Instruction } from "#ksm/ksm-case2-instruction";
+import { SigilKSMReadTableLengthInstruction } from "#ksm/ksm-read-table-length-instruction";
+import {
+  KSMBreakSwitchInstruction,
+  SigilKSMBreakSwitchInstruction
+} from "#ksm/ksm-break-switch-instruction";
+import { SigilKSMUnsure4Instruction } from "#ksm/ksm-unsure4-instruction";
 
 const IKSMIntrisic = z
   .enum([
@@ -117,7 +136,7 @@ const IKSMExpression = z.lazy(() =>
 
 // @ts-expect-error
 const IKSMCallInstruction = z.object({
-  type: z.enum(["KSMCall", "KSMCallAsChildThread"]),
+  type: z.enum(["KSMCall", "KSMCallAsThread", "KSMCallAsChildThread"]),
   callee: z.string(),
   arguments: z.string().or(IKSMExpression).array()
 });
@@ -138,17 +157,24 @@ const IKSMInstruction = z.discriminatedUnion("type", [
       "KSMReturn",
       "KSMEndDoWhile",
       "KSMNone",
+      "KSMBreak",
       "KSMEndIf",
+      "KSMBreakSwitch",
       "KSMEndSwitch",
       "KSMLabelPoint",
       "KSMUnsure0",
-      "KSMUnsure1"
+      "KSMUnsure1",
+      "KSMUnsure5"
     ])
   }),
   z.object({
     type: z.literal("KSMSet"),
     assignee: z.string(),
     value: z.string().or(IKSMExpression)
+  }),
+  z.object({
+    type: z.enum(["KSMUnsure3", "KSMUnsure4"]),
+    unknown0: z.string()
   }),
   z.object({
     type: z.literal("KSMIf"),
@@ -187,6 +213,10 @@ const IKSMInstruction = z.discriminatedUnion("type", [
     label: z.string()
   }),
   z.object({
+    type: z.literal("KSMReadTableLength"),
+    table: z.string()
+  }),
+  z.object({
     type: z.enum(["KSMThread", "KSMThread2"]),
     callee: z.string(),
     give: z.string().array(),
@@ -194,14 +224,15 @@ const IKSMInstruction = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("KSMSwitch"),
-    unknown0: z.number().int(),
-    unknown1: z.number().int(),
     value: z.string().or(IKSMExpression)
   }),
   z.object({
-    type: z.literal("KSMSwitchCase"),
-    unknown0: z.number().int(),
+    type: z.enum(["KSMSwitchCase", "KSMSwitchCase2"]),
     value: z.string().or(IKSMExpression)
+  }),
+  z.object({
+    type: z.literal("KSMUnsure2"),
+    unknown0: z.string().or(IKSMExpression)
   })
 ]);
 
@@ -237,15 +268,25 @@ const IKSMVariable = z.object({
 
 type IKSMVariable = z.infer<typeof IKSMVariable>;
 
+const IKSMTable = z.object({
+  type: z.enum(["int", "byte", "float", "variable"]).or(z.number()),
+  id: z.number(),
+  name: z.string().nullable(),
+  values: z.number().or(z.string()).array()
+});
+
+type IKSMTable = z.infer<typeof IKSMTable>;
+
 const IKSMFunction = z.object({
   name: z.string(),
   public: z.boolean(),
   id: z.number().int(),
-  threadfn: z.boolean(),
+  inlinefn: z.boolean(),
   unknown0: z.number().int(),
   unknown1: z.number().int(),
   unknown2: z.number().int(),
   labels: IKSMLabel.array(),
+  tables: IKSMTable.array(),
   variables: IKSMVariable.array(),
   instructions: IKSMInstruction.array()
 });
@@ -253,8 +294,8 @@ const IKSMFunction = z.object({
 type IKSMFunction = z.infer<typeof IKSMFunction>;
 
 const IKSM = z.object({
-  global: IKSMInstruction.array(),
   type: z.literal("KSM"),
+  tables: IKSMTable.array(),
   imports: IKSMImport.array(),
   functions: IKSMFunction.array(),
   variables: IKSMVariable.array(),
@@ -266,6 +307,8 @@ const IKSM = z.object({
 type IKSM = z.infer<typeof IKSM>;
 
 async function main(): Promise<void> {
+  console.log("Running...");
+
   try {
     const action = process.argv.at(2);
     const filepath = process.argv.at(3);
@@ -281,11 +324,11 @@ async function main(): Promise<void> {
     } else {
       throw new Error(`invalid action '${action}'`);
     }
-
-    console.log("Done...");
   } catch (err) {
     console.error(err);
   }
+
+  console.log("Done...");
 }
 
 function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unknown {
@@ -295,15 +338,6 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     const array = [];
 
     for (const el of symbol) {
-      if (
-        el instanceof KSMImport ||
-        el instanceof KSMVariable ||
-        el instanceof KSMFunction
-      ) {
-        array.push(el.name || `ref:${el.id}`);
-        continue;
-      }
-
       array.push(_export(el));
     }
 
@@ -359,9 +393,48 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     }
   }
 
+  if (symbol instanceof SigilKSMReadTableLengthInstruction) {
+    object.type = "KSMReadTableLength";
+    object.table = _export(symbol.table);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure5Instruction) {
+    object.type = "KSMUnsure5";
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure2Instruction) {
+    object.type = "KSMUnsure2";
+    object.unknown0 = _export(symbol.unknown);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure3Instruction) {
+    object.type = "KSMUnsure3";
+    object.unknown0 = _export(symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure4Instruction) {
+    object.type = "KSMUnsure4";
+    object.unknown0 = _export(symbol.unknown0);
+
+    return object;
+  }
+
   if (symbol instanceof SigilKSMCaseInstruction) {
     object.type = "KSMSwitchCase";
-    object.unknown0 = symbol.unknown0;
+    object.value = _export(symbol.value);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMCase2Instruction) {
+    object.type = "KSMSwitchCase2";
     object.value = _export(symbol.value);
 
     return object;
@@ -369,8 +442,6 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
 
   if (symbol instanceof SigilKSMSwitchInstruction) {
     object.type = "KSMSwitch";
-    object.unknown0 = symbol.unknown0;
-    object.unknown1 = symbol.unknown1;
     object.value = _export(symbol.value);
 
     return object;
@@ -379,35 +450,60 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
   if (symbol instanceof SigilKSMReturnValInstruction) {
     object.type = "KSMReturnVal";
 
-    object.value = Array.isArray(symbol.value)
-      ? _export(symbol.value)
-      : `ref:${symbol.value.name || symbol.value.id}`;
-
+    object.value = _export(symbol.value);
     return object;
   }
 
   if (symbol instanceof SigilKSM) {
+    const tables: IKSMTable[] = [];
     const imports: IKSMImport[] = [];
     const functions: IKSMFunction[] = [];
     const variables: IKSMVariable[] = [];
-    const global: IKSMInstruction[] = [];
+
+    for (const ta of symbol.tables.values()) {
+      const values: (string | number)[] = [];
+
+      for (const va of ta.values) {
+        if (typeof va === "number") {
+          values.push(va);
+          continue;
+        }
+
+        values.push(<string>_export(va));
+      }
+
+      tables.push({ ...ta, values, type: ta.type });
+    }
 
     for (const im of symbol.imports.values()) {
       assert(im.name !== null);
       imports.push({ ...im, name: im.name });
     }
 
-    for (const instruction of symbol.global.instructions) {
-      global.push(<IKSMInstruction>_export(instruction));
-    }
-
     for (const fn of symbol.functions.values()) {
+      const name = fn.name;
       const labels: IKSMLabel[] = [];
+      const tables: IKSMTable[] = [];
       const variables: IKSMVariable[] = [];
       const instructions: IKSMInstruction[] = [];
 
       for (const la of fn.labels.values()) {
         labels.push(la);
+      }
+
+      for (const ta of fn.tables.values()) {
+        const values: (string | number)[] = [];
+
+        for (const va of ta.values) {
+          if (typeof va === "number") {
+            values.push(va);
+            continue;
+          }
+
+          values.push(<string>_export(va));
+        }
+
+        tables.push({ ...ta, values, type: ta.type });
       }
 
       for (const va of fn.variables.values()) {
@@ -418,8 +514,16 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
         instructions.push(<IKSMInstruction>_export(instruction));
       }
 
-      assert(fn.name !== null);
-      functions.push({ ...fn, instructions, labels, variables, name: fn.name });
+      assert(name !== null);
+
+      functions.push({
+        ...fn,
+        name,
+        labels,
+        tables,
+        variables,
+        instructions
+      });
     }
 
     for (const va of symbol.variables.values()) {
@@ -427,7 +531,7 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     }
 
     object.type = "KSM";
-    object.global = global;
+    object.tables = tables;
     object.imports = imports;
     object.functions = functions;
     object.variables = variables;
@@ -438,23 +542,20 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     return object;
   }
 
-  if (symbol instanceof SigilKSMFunction || symbol instanceof SigilKSMVariable) {
-    return `ref:${symbol.name || symbol.id}`;
+  if (
+    symbol instanceof SigilKSMLabel ||
+    symbol instanceof SigilKSMTable ||
+    symbol instanceof SigilKSMImport ||
+    symbol instanceof SigilKSMFunction ||
+    symbol instanceof SigilKSMVariable
+  ) {
+    return symbol.name || `ref:${symbol.id}`;
   }
 
-  /*
-  if (symbol instanceof SigilKSMFunction) {
-    object.type = "KSMFunctionReference";
-
-    if (symbol.name !== null) {
-      object.name = symbol.name;
-    } else {
-      object.id = symbol.id;
-    }
-
+  if (symbol instanceof KSMBreakSwitchInstruction) {
+    object.type = "KSMBreakSwitch";
     return object;
   }
-  */
 
   if (symbol instanceof KSMLabelInstruction) {
     object.type = "KSMLabelPoint";
@@ -465,8 +566,8 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     object.type = "KSMThread";
     Object.assign(object, symbol);
 
-    object.give = symbol.give.map((g) => g.name || `ref:${g.id}`);
-    object.callee = symbol.callee.name || `ref:${symbol.callee.id}`;
+    object.callee = _export(symbol.callee);
+    object.give = symbol.give.map((g) => _export(g));
 
     return object;
   }
@@ -475,15 +576,15 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     object.type = "KSMThread2";
     Object.assign(object, symbol);
 
-    object.give = symbol.give.map((g) => g.name || `ref:${g.id}`);
-    object.callee = symbol.callee.name || `ref:${symbol.callee.id}`;
+    object.callee = _export(symbol.callee);
+    object.give = symbol.give.map((g) => _export(g));
 
     return object;
   }
 
   if (symbol instanceof KSMGotoInstruction) {
     object.type = "KSMGoto";
-    object.label = symbol.label.name || `ref:${symbol.label.id}`;
+    object.label = _export(symbol.label);
 
     return object;
   }
@@ -503,24 +604,26 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     return object;
   }
 
+  if (symbol instanceof KSMCallAsThreadInstruction) {
+    object.type = "KSMCallAsThread";
+    object.callee = _export(symbol.callee);
+    object.arguments = symbol.arguments.map((a) => _export(a));
+
+    return object;
+  }
+
   if (symbol instanceof KSMCallAsChildThreadInstruction) {
     object.type = "KSMCallAsChildThread";
-    object.callee = symbol.callee.name || `ref:${symbol.callee.id}`;
-
-    object.arguments = symbol.arguments.map((a) =>
-      Array.isArray(a) ? _export(a) : a.name || `ref:${a.id}`
-    );
+    object.callee = _export(symbol.callee);
+    object.arguments = symbol.arguments.map((a) => _export(a));
 
     return object;
   }
 
   if (symbol instanceof KSMCallInstruction) {
     object.type = "KSMCall";
-    object.callee = symbol.callee.name || `ref:${symbol.callee.id}`;
-
-    object.arguments = symbol.arguments.map((a) =>
-      Array.isArray(a) ? _export(a) : a.name || `ref:${a.id}`
-    );
+    object.callee = _export(symbol.callee);
+    object.arguments = symbol.arguments.map((a) => _export(a));
 
     return object;
   }
@@ -528,7 +631,7 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
   if (symbol instanceof KSMGetArgsInstruction) {
     object.type = "KSMGetArgs";
     object.fn = symbol.fn.name || symbol.fn.id;
-    object.arguments = symbol.arguments.map((a) => a.name || `ref:${a.id}`);
+    object.arguments = symbol.arguments.map((a) => _export(a));
 
     return object;
   }
@@ -536,7 +639,7 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
   if (symbol instanceof KSMSetInstruction) {
     object.type = "KSMSet";
     object.value = _export(symbol.value);
-    object.assignee = symbol.assignee.name || `ref:${symbol.assignee.id}`;
+    object.assignee = _export(symbol.assignee);
 
     return object;
   }
@@ -548,6 +651,11 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
 
   if (symbol instanceof KSMEndIfInstruction) {
     object.type = "KSMEndIf";
+    return object;
+  }
+
+  if (symbol instanceof KSMBreakInstruction) {
+    object.type = "KSMBreak";
     return object;
   }
 
@@ -658,10 +766,24 @@ function _import(
       object.variables.set(_variable.id, _variable);
     }
 
-    for (const instruction of symbol.global) {
-      object.global.instructions.push(
-        <SigilKSMInstruction>_import(object.global, object, instruction)
-      );
+
+    for (const ta of symbol.tables) {
+      const table = new SigilKSMTable();
+
+      table.id = ta.id;
+      table.name = ta.name;
+      table.length = ta.values.length;
+
+      object.tables.set(table.id, table);
+
+      for (const v of ta.values) {
+        if (typeof v === "number") {
+          table.values.push(v);
+          continue;
+        }
+
+        table.values.push(<SigilKSMVariable>_import(fn, object, v));
+      }
     }
 
     for (const fn of symbol.functions) {
@@ -673,7 +795,7 @@ function _import(
       _function.unknown0 = fn.unknown0;
       _function.unknown1 = fn.unknown1;
       _function.unknown2 = fn.unknown2;
-      _function.threadfn = fn.threadfn;
+      _function.inlinefn = fn.inlinefn;
 
       object.functions.set(_function.id, _function);
 
@@ -692,6 +814,25 @@ function _import(
 
         _function.variables.set(_variable.id, _variable);
       }
+
+      for (const ta of fn.tables) {
+        const table = new SigilKSMTable();
+
+        table.id = ta.id;
+        table.name = ta.name;
+        table.length = ta.values.length;
+
+        _function.tables.set(table.id, table);
+
+        for (const v of ta.values) {
+          if (typeof v === "number") {
+            table.values.push(v);
+            continue;
+          }
+
+          table.values.push(<SigilKSMVariable>_import(_function, object, v));
+        }
+      }
     }
 
     for (const fn of symbol.functions) {
@@ -708,7 +849,40 @@ function _import(
     return object;
   }
 
-  assert(script !== null);
+  assert(script !== null, "bad...");
+
+  if (typeof symbol === "string") {
+    return _resolve(fn, script, symbol);
+  }
+
+  if (symbol.type === "KSMUnsure2") {
+    const object = new SigilKSMUnsure2Instruction();
+    object.unknown = <SigilKSMExpression>_import(fn, script, symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure3") {
+    const object = new SigilKSMUnsure3Instruction();
+    object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure4") {
+    const object = new SigilKSMUnsure4Instruction();
+    object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure5") {
+    return new SigilKSMUnsure5Instruction();
+  }
+
+  if (symbol.type === "KSMBreak") {
+    return new SigilKSMBreakInstruction();
+  }
 
   if (symbol.type === "KSMReturn") {
     return new SigilKSMReturnInstruction();
@@ -749,6 +923,22 @@ function _import(
     return object;
   }
 
+  if (symbol.type === "KSMCallAsThread") {
+    const object = new SigilKSMCallAsThreadInstruction();
+    object.callee = <SigilKSMFunction>_resolve(fn, script, symbol.callee);
+
+    for (const a of symbol.arguments) {
+      if (typeof a === "string") {
+        object.arguments.push(<SigilKSMVariable>_resolve(fn, script, a));
+        continue;
+      }
+
+      object.arguments.push(<SigilKSMExpression>_import(fn, script, a));
+    }
+
+    return object;
+  }
+
   if (symbol.type === "KSMCallAsChildThread") {
     const object = new SigilKSMCallAsChildThreadInstruction();
     object.callee = <SigilKSMFunction>_resolve(fn, script, symbol.callee);
@@ -766,13 +956,15 @@ function _import(
   }
 
   if (symbol.type === "KSMElse") {
-    const object = new SigilKSMElseInstruction();
-    return object;
+    return new SigilKSMElseInstruction();
   }
 
   if (symbol.type === "KSMEndDoWhile") {
-    const object = new SigilKSMEndDoWhileInstruction();
-    return object;
+    return new SigilKSMEndDoWhileInstruction();
+  }
+
+  if (symbol.type === "KSMBreakSwitch") {
+    return new SigilKSMBreakSwitchInstruction();
   }
 
   if (symbol.type === "KSMDoWhile") {
@@ -909,6 +1101,13 @@ function _import(
     return object;
   }
 
+  if (symbol.type === "KSMReadTableLength") {
+    const object = new SigilKSMReadTableLengthInstruction();
+    object.table = <SigilKSMTable>_import(fn, script, symbol.table);
+
+    return object;
+  }
+
   if (symbol.type === "KSMWaitMS") {
     const object = new SigilKSMWaitMSInstruction();
     object.time = <SigilKSMWaitTime>_import(fn, script, symbol.time);
@@ -925,9 +1124,6 @@ function _import(
 
   if (symbol.type === "KSMSwitch") {
     const object = new SigilKSMSwitchInstruction();
-
-    object.unknown0 = symbol.unknown0;
-    object.unknown1 = symbol.unknown1;
     object.value = <SigilKSMVariable>_import(fn, script, symbol.value);
 
     return object;
@@ -935,8 +1131,13 @@ function _import(
 
   if (symbol.type === "KSMSwitchCase") {
     const object = new SigilKSMCaseInstruction();
+    object.value = <SigilKSMVariable>_import(fn, script, symbol.value);
 
-    object.unknown0 = symbol.unknown0;
+    return object;
+  }
+
+  if (symbol.type === "KSMSwitchCase2") {
+    const object = new SigilKSMCase2Instruction();
     object.value = <SigilKSMVariable>_import(fn, script, symbol.value);
 
     return object;
@@ -988,8 +1189,6 @@ function _import(
         expr.push(new SigilKSMIntrinsic("or"));
       } else if (el === ")") {
         expr.push(new SigilKSMIntrinsic("right_paren"));
-      } else if (typeof el === "number") {
-        expr.push(new SigilKSMIntrinsic(el));
       } else if (typeof el === "object") {
         // KSMCall
         expr.push(_import(fn, script, el));
@@ -1001,10 +1200,6 @@ function _import(
     return <SigilKSMExpression>expr;
   }
 
-  if (typeof symbol === "string") {
-    return _resolve(fn, script, symbol);
-  }
-
   console.error(symbol);
   throw new Error("unknown");
 }
@@ -1013,21 +1208,14 @@ function _resolve(
   fn: null | SigilKSMFunction,
   script: SigilKSM,
   ref: string
-): SigilKSMLabel | SigilKSMImport | SigilKSMVariable | SigilKSMFunction {
+):
+  | SigilKSMTable
+  | SigilKSMLabel
+  | SigilKSMImport
+  | SigilKSMVariable
+  | SigilKSMFunction {
   const prop = ref.startsWith("ref:") ? "id" : "name";
   const id = ref.startsWith("ref:") ? Number.parseInt(ref.replace("ref:", "")) : ref;
-
-  for (const im of script.imports.values()) {
-    if (im[prop] === id) {
-      return im;
-    }
-  }
-
-  for (const fn of script.functions.values()) {
-    if (fn[prop] === id) {
-      return fn;
-    }
-  }
 
   if (fn !== null && fn instanceof KSMFunction) {
     for (const la of fn.labels.values()) {
@@ -1041,6 +1229,30 @@ function _resolve(
         return va;
       }
     }
+
+    for (const ta of fn.tables.values()) {
+      if (ta[prop] === id) {
+        return ta;
+      }
+    }
+  }
+
+  for (const ta of script.tables.values()) {
+    if (ta[prop] === id) {
+      return ta;
+    }
+  }
+
+  for (const im of script.imports.values()) {
+    if (im[prop] === id) {
+      return im;
+    }
+  }
+
+  for (const fn of script.functions.values()) {
+    if (fn[prop] === id) {
+      return fn;
+    }
   }
 
   for (const va of script.variables.values()) {
@@ -1051,6 +1263,8 @@ function _resolve(
 
   throw new Error(`unknown ref '${ref}'`);
 }
+
+const hex = (a: number) => "0x" + a.toString(16).padStart(8, "0").toUpperCase();
 
 async function compile(filepath: string): Promise<void> {
   const script = _import(
@@ -1064,11 +1278,43 @@ async function compile(filepath: string): Promise<void> {
 }
 
 async function decompile(filepath: string): Promise<void> {
-  const script = _export(new SigilKSM().parse(await fs.readFile(filepath)));
+  const script = new SigilKSM().parse(await fs.readFile(filepath));
+
+  console.log("\nTables:");
+
+  for (const ta of script.tables.values()) {
+    console.log(
+      `* ${ta.name !== null ? `${ta.name}` : `unnamed_${hex(ta.id)}`} (id: ${hex(ta.id)}, type: ${ta.type})`
+    );
+  }
+
+  console.log("\nImports:");
+
+  for (const im of script.imports.values()) {
+    console.log(
+      `* ${im.name !== null ? `${im.name}` : `unnamed_${hex(im.id)}`} (id: ${hex(im.id)})`
+    );
+  }
+
+  console.log("\nFunctions:");
+
+  for (const fn of script.functions.values()) {
+    console.log(
+      `* ${fn.name !== null ? `${fn.name}` : `unnamed_${hex(fn.id)}`} (id: ${hex(fn.id)})`
+    );
+  }
+
+  console.log("\nVariables:");
+
+  for (const va of script.variables.values()) {
+    console.log(
+      `* ${va.name !== null ? `${va.name}` : `unnamed_${hex(va.id)}`} (id: ${hex(va.id)}, scope: ${va.scope})`
+    );
+  }
 
   await fs.writeFile(
     `${filepath}.out.json`,
-    JSON.stringify(IKSM.parse(script), undefined, 4)
+    JSON.stringify(IKSM.parse(_export(script)), undefined, 4)
   );
 }
 

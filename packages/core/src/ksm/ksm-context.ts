@@ -7,6 +7,7 @@ import { SigilKSMIntrinsic } from "#ksm/ksm-intrinsic";
 import { SigilKSMFunction } from "#ksm/ksm-function";
 import { SigilKSMCallInstruction } from "#ksm/ksm-call-instruction";
 import { SigilKSMLabel } from "#ksm/ksm-label";
+import { SigilKSMTable } from "./ksm-table";
 
 type SigilKSMSymbol = SigilKSMImport | SigilKSMVariable | SigilKSMFunction;
 
@@ -21,14 +22,16 @@ class SigilKSMContext {
   public opcode: number;
   public codeOffset: number;
   public readonly script: SigilKSM;
-  public readonly seen: Set<SigilKSMFunction>;
+  public readonly seen: Set<SigilKSMTable | SigilKSMFunction>;
 
   private readonly _labels: Map<number, SigilKSMLabel>;
+  private readonly _tables: Map<number, SigilKSMTable>;
   private readonly _scope: Map<number, SigilKSMVariable>;
 
   public constructor(script: SigilKSM) {
     this._scope = new Map();
     this._labels = new Map();
+    this._tables = new Map();
 
     this.opcode = 0;
     this.const = false;
@@ -52,14 +55,34 @@ class SigilKSMContext {
       return im;
     }
 
-    throw new Error("Unknown function with ID" + id);
+    throw new Error("Unknown function with ID 0x" + id);
+  }
+
+  public im(id: number): SigilKSMImport {
+    const im = this.script.imports.get(id);
+
+    if (im === undefined) {
+      throw new Error("Unknown im with ID 0x" + id.toString(16));
+    }
+
+    return im;
+  }
+
+  public ta(id: number): SigilKSMTable {
+    const ta = this._tables.get(id) || this.script.tables.get(id);
+
+    if (ta === undefined) {
+      throw new Error("Unknown table with ID 0x" + id.toString(16));
+    }
+
+    return ta;
   }
 
   public var(id: number): SigilKSMVariable {
     const va = this._scope.get(id) || this.script.variables.get(id);
 
     if (va === undefined) {
-      throw new Error("Unknown variable with ID " + id.toString(16));
+      throw new Error("Unknown variable with ID 0x" + id.toString(16));
     }
 
     return va;
@@ -128,6 +151,10 @@ class SigilKSMContext {
       clone._labels.set(id, label);
     }
 
+    for (const [id, table] of fn.tables) {
+      clone._tables.set(id, table);
+    }
+
     for (const [id, variable] of fn.variables) {
       clone._scope.set(id, variable);
     }
@@ -144,7 +171,7 @@ class SigilKSMContext {
       return this.fn(id, true);
     } catch {}
 
-    throw "bad symbol" + id;
+    throw new Error(`Bad symbol 0x${id.toString(16)}`);
   }
 
   public clone(): SigilKSMContext {

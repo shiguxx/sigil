@@ -31,6 +31,18 @@ import { SigilKSMDeleteRuntimeInstruction } from "./ksm-delete-runtime-instructi
 import { SigilKSMThreadInstruction } from "./ksm-thread-cmd";
 import { SigilKSMDoWhileInstruction } from "./ksm-dowhile-instruction";
 import { SigilKSMEndDoWhileInstruction } from "./ksm-end-dowhile-instruction";
+import { SigilKSMTable } from "./ksm-table";
+import { SigilKSMCallAsThreadInstruction } from "./ksm-call-as-thread-instruction";
+import { SigilKSMUnsure2Instruction } from "./ksm-unsure2";
+import { SigilKSMBreakInstruction } from "./ksm-break-instruction";
+import { SigilKSMUnsure3Instruction } from "./ksm-unsure3";
+import { SigilKSMCase2Instruction } from "./ksm-case2-instruction";
+import { SigilKSMBreakSwitchInstruction } from "./ksm-break-switch-instruction";
+import { SigilKSMUnsure4Instruction } from "./ksm-unsure4-instruction";
+import { SigilKSMReadTableLengthInstruction } from "./ksm-read-table-length-instruction";
+import { SigilKSMUnsure5Instruction } from "./ksm-unsure5";
+
+const SIGIL_KSM_GLOBAL_FUNCTION_NAME = "SIGIL_GLOBAL";
 
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
@@ -49,8 +61,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
   public readonly unknown0: number[];
   public readonly unknown1: number[];
   public readonly unknown2: number[];
-  public readonly global: SigilKSMFunction;
 
+  public readonly tables: Map<number, SigilKSMTable>;
   public readonly imports: Map<number, SigilKSMImport>;
   public readonly functions: Map<number, SigilKSMFunction>;
   public readonly variables: Map<number, SigilKSMVariable>;
@@ -58,6 +70,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
   public constructor() {
     super();
 
+    this.tables = new Map();
     this.imports = new Map();
     this.functions = new Map();
     this.variables = new Map();
@@ -70,7 +83,6 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._section5 = 0;
     this._section6 = 0;
     this._section7 = 0;
-    this.global = new SigilKSMFunction();
 
     this.unknown0 = [];
     this.unknown1 = [];
@@ -99,6 +111,16 @@ class SigilKSM extends CTRBinarySerializable<never> {
     ctx.const = (raw & 0x100) !== 0;
 
     switch (ctx.opcode) {
+      case SigilKSMOpCode.OPCODE_UNSURE5:
+        return new SigilKSMUnsure5Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_READ_TABLE_LENGTH:
+        return new SigilKSMReadTableLengthInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE4:
+        return new SigilKSMUnsure4Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_BREAK_SWITCH:
+        return new SigilKSMBreakSwitchInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_CASE2:
+        return new SigilKSMCase2Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_IF:
         return new SigilKSMIfInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_SET:
@@ -127,6 +149,14 @@ class SigilKSM extends CTRBinarySerializable<never> {
         return new SigilKSMThread2Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_WAIT_MS:
         return new SigilKSMWaitMSInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE3:
+        return new SigilKSMUnsure3Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_BREAK:
+        return new SigilKSMBreakInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE2:
+        return new SigilKSMUnsure2Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_CALL_AS_THREAD:
+        return new SigilKSMCallAsThreadInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_GET_ARGS:
         return new SigilKSMGetArgsInstruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_UNSURE0:
@@ -152,7 +182,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
       case SigilKSMOpCode.OPCODE_END_DO_WHILE:
         return new SigilKSMEndDoWhileInstruction().parse(buffer, ctx);
       default:
-        throw new Error("unknown instruction" + ctx.opcode + "at" + buffer.offset);
+        throw new Error(
+          `unknown instruction 0x${ctx.opcode.toString(16)} at ${buffer.offset}`
+        );
     }
   }
 
@@ -176,7 +208,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer: CTRMemory,
     ctx: SigilKSMContext,
     fn: SigilKSMFunction,
-    size: number
+    size: number,
+    noadd?: boolean
   ): void {
     const pushed = ctx.push(fn);
     const start = buffer.offset;
@@ -194,7 +227,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
       fn.instructions.push(instruction);
     }
 
-    if (fn !== this.global) {
+    if (!noadd) {
       ctx.seen.add(fn);
     }
   }
@@ -219,7 +252,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
     this._buildSection7(buffer, ctx);
 
     ctx.seen.clear();
-    this._fixJumpToOffsets(this.global, ctx);
+    //this._fixJumpToOffsets(this.global, ctx);
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
       this._fixLabels(fn, ctx);
@@ -292,33 +325,50 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _fixLabels(fn: SigilKSMFunction, ctx: SigilKSMContext): void {
-    let labelCounter = 0;
+    let i = 0;
+
+    const labels = Array.from(fn.labels.values());
+    labels.reverse();
 
     for (const instruction of fn.instructions.values()) {
       if (instruction instanceof SigilKSMLabelInstruction) {
-        const label = Array.from(fn.labels.values())[labelCounter];
+        const label = labels[i];
 
-        if (label !== undefined) {
-          label.address =
-            (instruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE) / 4;
-
-          labelCounter += 1;
+        if (label === undefined) {
+          break;
         }
+
+        label.address =
+          (instruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE) / 4;
+
+        i += 1;
       }
     }
   }
 
   private _fixCodeStartOffsets(): void {
     const seen = new Set<SigilKSMFunction>();
-
     let currentCodeOffset = 0;
-
-    for (const inst of this.global.instructions) {
-      currentCodeOffset += inst.sizeof + CTRMemory.U32_SIZE;
-    }
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
       fixCodeStartOffset(fn, null);
+    }
+
+    for (const ta of Array.from(this.tables.values())) {
+      ta.startOffset = currentCodeOffset;
+
+      if (ta.type === "byte") {
+        currentCodeOffset += ta.length;
+      } else if (
+        ta.type === "float" ||
+        ta.type === "int" ||
+        ta.type === "variable"
+      ) {
+        currentCodeOffset += ta.length * 4;
+      }
+
+      currentCodeOffset = CTRMemory.align(currentCodeOffset, 4);
+      currentCodeOffset += 8;
     }
 
     function fixCodeStartOffset(
@@ -331,14 +381,14 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
       fn.codeStart = currentCodeOffset;
 
-      if(inst !== null) {
+      if (inst !== null) {
         currentCodeOffset +=
-        CTRMemory.U32_SIZE +
-        CTRMemory.U32_SIZE +
-        CTRMemory.U32_SIZE +
-        CTRMemory.U32_SIZE +
-        inst.give.length * CTRMemory.U32_SIZE +
-        inst.take.length * CTRMemory.U32_SIZE;
+          CTRMemory.U32_SIZE +
+          CTRMemory.U32_SIZE +
+          CTRMemory.U32_SIZE +
+          CTRMemory.U32_SIZE +
+          inst.give.length * CTRMemory.U32_SIZE +
+          inst.take.length * CTRMemory.U32_SIZE;
       }
 
       for (const inst of fn.instructions) {
@@ -441,7 +491,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
           const nextInstruction = fn.instructions[i]!;
 
           if (
-            nextInstruction instanceof SigilKSMCaseInstruction &&
+            (nextInstruction instanceof SigilKSMCaseInstruction ||
+              nextInstruction instanceof SigilKSMCase2Instruction) &&
             jumpToOffset == 0
           ) {
             jumpToOffset =
@@ -467,14 +518,21 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
         instruction.unknown0 = jumpToOffset2 / 4;
         instruction.unknown1 = jumpToOffset / 4;
-      } else if (instruction instanceof SigilKSMCaseInstruction) {
+      } else if (
+        instruction instanceof SigilKSMCaseInstruction ||
+        instruction instanceof SigilKSMCase2Instruction
+      ) {
         let jumpToOffset = 0;
         let depth = 0;
 
         for (let i = index + 1; i < fn.instructions.length; i++) {
           const nextInstruction = fn.instructions[i]!;
 
-          if (nextInstruction instanceof SigilKSMCaseInstruction && depth <= 0) {
+          if (
+            (nextInstruction instanceof SigilKSMCaseInstruction ||
+              nextInstruction instanceof SigilKSMCase2Instruction) &&
+            depth <= 0
+          ) {
             jumpToOffset =
               nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
             break;
@@ -539,7 +597,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.u32(this.functions.size);
 
     for (const fn of this.functions.values()) {
-      fn.build(buffer, ctx);
+      if (fn.name !== SIGIL_KSM_GLOBAL_FUNCTION_NAME) {
+        fn.build(buffer, ctx);
+      }
     }
   }
 
@@ -561,11 +621,21 @@ class SigilKSM extends CTRBinarySerializable<never> {
   }
 
   private _buildSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._section3 = this._buildUnknownSection(buffer, this.unknown1, ctx);
+    this._section3 = buffer.offset;
+    buffer.u32(this.tables.size);
+
+    for (const table of this.tables.values()) {
+      table.build(buffer, ctx);
+    }
   }
 
   private _parseSection3(buffer: CTRMemory, ctx: SigilKSMContext): void {
-    this._parseUnknownSection(buffer, this.unknown1, this._section4, ctx);
+    const count = buffer.u32();
+
+    for (let i = 0; i < count; i += 1) {
+      const table = new SigilKSMTable().parse(buffer, ctx);
+      this.tables.set(table.id, table);
+    }
   }
 
   private _buildSection4(buffer: CTRMemory, ctx: SigilKSMContext): void {
@@ -612,12 +682,15 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.u32(0x00000000);
 
     ctx.codeOffset = buffer.offset;
-    this.buildFunctionCode(buffer, ctx, this.global);
 
     for (const fn of Array.from(this.functions.values()).reverse()) {
-      if (!fn.threadfn) {
+      if (!fn.inlinefn) {
         this.buildFunctionCode(buffer, ctx, fn);
       }
+    }
+
+    for (const ta of this.tables.values()) {
+      this._buildTableValues(buffer, ctx, ta);
     }
 
     this._buildUnknownSection(buffer, this.unknown2, ctx);
@@ -626,28 +699,172 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.seek(this._section7).u32(diff / 4);
   }
 
+  private _buildTableValues(
+    buffer: CTRMemory,
+    ctx: SigilKSMContext,
+    table: SigilKSMTable
+  ): void {
+    if (ctx.seen.has(table)) {
+      throw "OwO";
+    }
+
+    ctx.seen.add(table);
+
+    if (table.type === "int") {
+      buffer.u32(0x65);
+    } else if (table.type === "float") {
+      buffer.u32(0x64);
+    } else if (table.type === "variable") {
+      buffer.u32(0x63);
+    }
+
+    for (const va of table.values) {
+      if (table.type === "int") {
+        if (typeof va !== "number") {
+          throw "bad..";
+        }
+
+        buffer.i32(va);
+      } else if (table.type === "byte") {
+        if (typeof va !== "number") {
+          throw "bad..";
+        }
+
+        buffer.u8(va);
+      } else if (table.type === "float") {
+        if (typeof va !== "number") {
+          throw "bad..";
+        }
+
+        buffer.f32(va);
+      } else if (table.type === "variable") {
+        if (typeof va !== "object") {
+          throw "bad..";
+        }
+
+        buffer.u32(va.id);
+      }
+    }
+
+    while (buffer.offset % 4 !== 0) {
+      buffer.u8(0x00);
+    }
+
+    buffer.u32(0x66);
+  }
+
+  private _parseTableValues(
+    buffer: CTRMemory,
+    ctx: SigilKSMContext,
+    table: SigilKSMTable
+  ): void {
+    if (ctx.seen.has(table)) {
+      throw "what are you doing lil bro?";
+    }
+
+    ctx.seen.add(table);
+
+    const opening = buffer.u32();
+
+    if (opening !== 0x63 && opening !== 0x64 && opening !== 0x65) {
+      throw new Error("invalid opening code");
+    }
+
+    for (let i = 0; i < table.length; i += 1) {
+      if (table.type === "int") {
+        table.values.push(buffer.i32());
+      } else if (table.type === "byte") {
+        table.values.push(buffer.u8());
+      } else if (table.type === "float") {
+        table.values.push(buffer.f32());
+      } else if (table.type === "variable") {
+        table.values.push(ctx.var(buffer.u32()));
+      } else {
+        throw new Error("Invalid table type " + table.type);
+      }
+    }
+
+    while (buffer.offset % 4 !== 0) {
+      if (buffer.u8() !== 0x00) {
+        throw new Error("bad padding");
+      }
+    }
+
+    if (buffer.u32() !== 0x66) {
+      throw new Error("invalid closing code");
+    }
+  }
+
   private _parseSection7(buffer: CTRMemory, ctx: SigilKSMContext): void {
     const count = buffer.u32() * 4;
     ctx.codeOffset = buffer.offset;
 
-    const functions = Array.from(this.functions.values());
+    const functionsAndTables = Array.from([
+      ...this.tables.values(),
+      ...this.functions.values()
+    ]);
 
-    const firstFunctionCodeStart = functions
-      .sort((a, b) => a.codeStart - b.codeStart)
-      .at(0)!.codeStart;
+    const totalFunctionAndTables = functionsAndTables.length;
 
-    this.parseFunctionCode(buffer, ctx, this.global, firstFunctionCodeStart);
+    functionsAndTables.sort((a, b) => {
+      const aStart = a instanceof SigilKSMFunction ? a.codeStart : a.startOffset;
+      const bStart = b instanceof SigilKSMFunction ? b.codeStart : b.startOffset;
 
-    while (ctx.seen.size < functions.length) {
-      const fn = functions.find(
-        (fn) => fn.codeStart === buffer.offset - ctx.codeOffset
-      );
+      return aStart - bStart;
+    });
 
-      if (fn === undefined) {
-        throw "ksm.err_malformed_file";
+    while (ctx.seen.size < totalFunctionAndTables) {
+      const fnOrTable = functionsAndTables.shift();
+
+      if (fnOrTable === undefined) {
+        break;
       }
 
-      this.parseFunctionCode(buffer, ctx, fn, fn.codeEnd - fn.codeStart);
+      if (ctx.seen.has(fnOrTable)) {
+        continue;
+      }
+
+      const relativeStart =
+        fnOrTable instanceof SigilKSMFunction
+          ? fnOrTable.codeStart
+          : fnOrTable.startOffset;
+
+      const absoluteStart = relativeStart + ctx.codeOffset;
+      console.log(buffer.offset, absoluteStart, fnOrTable.name);
+
+      // were not at the start of this function so parse
+      // the code until then into a global function
+      if (buffer.offset < absoluteStart) {
+        const globalfn = new SigilKSMFunction();
+
+        globalfn.name = SIGIL_KSM_GLOBAL_FUNCTION_NAME;
+        globalfn.codeStart = buffer.offset - ctx.codeOffset;
+
+        this.parseFunctionCode(
+          buffer,
+          ctx,
+          globalfn,
+          absoluteStart - buffer.offset,
+          true
+        );
+      }
+
+      if (buffer.offset !== absoluteStart) {
+        throw "what?";
+      }
+
+      if (fnOrTable instanceof SigilKSMFunction) {
+        this.parseFunctionCode(
+          buffer,
+          ctx,
+          fnOrTable,
+          fnOrTable.codeEnd - fnOrTable.codeStart
+        );
+
+        continue;
+      }
+
+      this._parseTableValues(buffer, ctx, fnOrTable);
     }
 
     // capture unknown remaining bytes...
@@ -671,8 +888,8 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
     buffer.u32(variables.length);
 
-    for (const variable of variables) {
-      variable.build(buffer, ctx);
+    for (const va of variables) {
+      va.build(buffer, ctx);
     }
 
     return offset;

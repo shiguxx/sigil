@@ -61,6 +61,7 @@ class SigilKSMSetInstruction extends SigilKSMInstruction {
     let sizeof = 0;
 
     sizeof += CTRMemory.U32_SIZE; // assignee id
+    
     sizeof += Array.isArray(this.value)
       ? exprsizeof(this.value)
       : CTRMemory.U32_SIZE;

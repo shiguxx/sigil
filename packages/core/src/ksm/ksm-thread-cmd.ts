@@ -96,7 +96,7 @@ class SigilKSMThreadInstruction extends SigilKSMInstruction {
         }
       */
 
-      this.callee.threadfn = true;
+      this.callee.inlinefn = true;
 
       ctx.script.parseFunctionCode(
         buffer,
