@@ -42,6 +42,8 @@ import { SigilKSMUnsure4Instruction } from "./ksm-unsure4-instruction";
 import { SigilKSMReadTableLengthInstruction } from "./ksm-read-table-length-instruction";
 import { SigilKSMUnsure5Instruction } from "./ksm-unsure5";
 
+const SIGIL_KSM_GLOBAL_FUNCTION_NAME = "SIGIL_GLOBAL";
+
 class SigilKSM extends CTRBinarySerializable<never> {
   private static readonly MAGIC = new CTRMemory([
     0x4b, 0x53, 0x4d, 0x52, 0x00, 0x03, 0x01, 0x00
@@ -583,7 +585,9 @@ class SigilKSM extends CTRBinarySerializable<never> {
     buffer.u32(this.functions.size);
 
     for (const fn of this.functions.values()) {
-      fn.build(buffer, ctx);
+      if(fn.name !== SIGIL_KSM_GLOBAL_FUNCTION_NAME) {
+        fn.build(buffer, ctx);
+      }
     }
   }
 
@@ -820,7 +824,7 @@ class SigilKSM extends CTRBinarySerializable<never> {
       if (buffer.offset < absoluteStart) {
         const globalfn = new SigilKSMFunction();
 
-        globalfn.name = "SIGIL_GLOBAL";
+        globalfn.name = SIGIL_KSM_GLOBAL_FUNCTION_NAME;
         globalfn.codeStart = buffer.offset - ctx.codeOffset;
 
         this.parseFunctionCode(
