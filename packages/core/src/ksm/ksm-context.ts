@@ -171,7 +171,7 @@ class SigilKSMContext {
       return this.fn(id, true);
     } catch {}
 
-    throw "bad symbol" + id;
+    throw new Error(`Bad symbol 0x${id.toString(16)}`);
   }
 
   public clone(): SigilKSMContext {
