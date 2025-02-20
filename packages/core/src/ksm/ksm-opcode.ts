@@ -60,6 +60,9 @@ enum SigilKSMOpCode {
   OPCODE_GTE = 0x4e,
   OPCODE_LTE = 0x4f,
 
+  OPCODE_INC = 0x50,
+  OPCODE_DEC = 0x51,
+
   OPCODE_MOD = 0x52,
   OPCODE_ADD = 0x53,
   OPCODE_SUB = 0x54,

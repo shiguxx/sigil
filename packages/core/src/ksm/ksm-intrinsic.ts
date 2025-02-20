@@ -23,7 +23,9 @@ type SigilKSMIntrinsicType =
   | "bwx"
   | "bsl"
   | "bsr"
-  | "mod";
+  | "mod"
+  | "inc"
+  | "dec";
 
 class SigilKSMIntrinsic extends SigilKSMInstruction {
   public type: SigilKSMIntrinsicType;
@@ -81,6 +83,10 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
         return SigilKSMOpCode.OPCODE_RSHFT;
       case "mod":
         return SigilKSMOpCode.OPCODE_MOD;
+      case "dec":
+        return SigilKSMOpCode.OPCODE_DEC;
+      case "inc":
+        return SigilKSMOpCode.OPCODE_INC;
       default:
         return this.type;
     }
@@ -150,6 +156,12 @@ class SigilKSMIntrinsic extends SigilKSMInstruction {
         break;
       case SigilKSMOpCode.OPCODE_MOD:
         this.type = "mod";
+        break;
+      case SigilKSMOpCode.OPCODE_DEC:
+        this.type = "dec";
+        break;
+      case SigilKSMOpCode.OPCODE_INC:
+        this.type = "inc";
         break;
       default:
         throw new Error("bad intristic " + opcode);
