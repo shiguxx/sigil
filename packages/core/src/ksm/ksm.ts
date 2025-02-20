@@ -513,14 +513,21 @@ class SigilKSM extends CTRBinarySerializable<never> {
 
         instruction.unknown0 = jumpToOffset2 / 4;
         instruction.unknown1 = jumpToOffset / 4;
-      } else if (instruction instanceof SigilKSMCaseInstruction) {
+      } else if (
+        instruction instanceof SigilKSMCaseInstruction ||
+        instruction instanceof SigilKSMCase2Instruction
+      ) {
         let jumpToOffset = 0;
         let depth = 0;
 
         for (let i = index + 1; i < fn.instructions.length; i++) {
           const nextInstruction = fn.instructions[i]!;
 
-          if (nextInstruction instanceof SigilKSMCaseInstruction && depth <= 0) {
+          if (
+            (nextInstruction instanceof SigilKSMCaseInstruction ||
+              nextInstruction instanceof SigilKSMCase2Instruction) &&
+            depth <= 0
+          ) {
             jumpToOffset =
               nextInstruction.offset! - ctx.codeOffset - CTRMemory.U32_SIZE;
             break;
