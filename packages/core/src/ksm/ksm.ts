@@ -41,6 +41,13 @@ import { SigilKSMBreakSwitchInstruction } from "./ksm-break-switch-instruction";
 import { SigilKSMUnsure4Instruction } from "./ksm-unsure4-instruction";
 import { SigilKSMReadTableLengthInstruction } from "./ksm-read-table-length-instruction";
 import { SigilKSMUnsure5Instruction } from "./ksm-unsure5";
+import { SigilKSMUnsure6Instruction } from "./ksm-unsure6-instruction";
+import { SigilKSMUnsure7Instruction } from "./ksm-unsure7-instruction";
+import { SigilKSMUnsure8Instruction } from "./ksm-unsure8";
+import { SigilKSMUnsure9Instruction } from "./ksm-unsure9";
+import { SigilKSMUnsure10Instruction } from "./ksm-unsure10";
+import { SigilKSMUnsure11Instruction } from "./ksm-unsure11";
+import { SigilKSMGetIndexInstruction } from "./ksm-get-index";
 
 const SIGIL_KSM_GLOBAL_FUNCTION_NAME = "SIGIL_GLOBAL";
 
@@ -111,6 +118,20 @@ class SigilKSM extends CTRBinarySerializable<never> {
     ctx.const = (raw & 0x100) !== 0;
 
     switch (ctx.opcode) {
+      case SigilKSMOpCode.OPCODE_GET_INDEX:
+        return new SigilKSMGetIndexInstruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE11:
+        return new SigilKSMUnsure11Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE10:
+        return new SigilKSMUnsure10Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE9:
+        return new SigilKSMUnsure9Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE8:
+        return new SigilKSMUnsure8Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE7:
+        return new SigilKSMUnsure7Instruction().parse(buffer, ctx);
+      case SigilKSMOpCode.OPCODE_UNSURE6:
+        return new SigilKSMUnsure6Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_UNSURE5:
         return new SigilKSMUnsure5Instruction().parse(buffer, ctx);
       case SigilKSMOpCode.OPCODE_READ_TABLE_LENGTH:

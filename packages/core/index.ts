@@ -108,6 +108,13 @@ import {
   SigilKSMBreakSwitchInstruction
 } from "#ksm/ksm-break-switch-instruction";
 import { SigilKSMUnsure4Instruction } from "#ksm/ksm-unsure4-instruction";
+import { SigilKSMGetIndexInstruction } from "#ksm/ksm-get-index";
+import { SigilKSMUnsure11Instruction } from "#ksm/ksm-unsure11";
+import { SigilKSMUnsure10Instruction } from "#ksm/ksm-unsure10";
+import { SigilKSMUnsure9Instruction } from "#ksm/ksm-unsure9";
+import { SigilKSMUnsure6Instruction } from "#ksm/ksm-unsure6-instruction";
+import { SigilKSMUnsure7Instruction } from "#ksm/ksm-unsure7-instruction";
+import { SigilKSMUnsure8Instruction } from "#ksm/ksm-unsure8";
 
 const IKSMIntrisic = z
   .enum([
@@ -223,6 +230,12 @@ const IKSMInstruction = z.discriminatedUnion("type", [
     take: z.number().array()
   }),
   z.object({
+    type: z.literal("KSMGetIndex"),
+    table: z.string(),
+    variable: z.string(),
+    occurence: z.string()
+  }),
+  z.object({
     type: z.literal("KSMSwitch"),
     value: z.string().or(IKSMExpression)
   }),
@@ -233,6 +246,40 @@ const IKSMInstruction = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("KSMUnsure2"),
     unknown0: z.string().or(IKSMExpression)
+  }),
+  z.object({
+    type: z.literal("KSMUnsure9"),
+    unknown0: IKSMExpression
+  }),
+  z.object({
+    type: z.literal("KSMUnsure11"),
+    unknown0: z.string(),
+    unknown1: z.string()
+  }),
+  z.object({
+    type: z.literal("KSMUnsure6"),
+    unknown0: z.string(),
+    unknown1: z.string(),
+    unknown2: z.string(),
+    unknown3: z.string(),
+    unknown4: z.string()
+  }),
+  z.object({
+    type: z.literal("KSMUnsure7"),
+    unknown0: z.string(),
+    unknown1: z.string(),
+    unknown2: z.string(),
+    unknown3: z.string()
+  }),
+  z.object({
+    type: z.literal("KSMUnsure8"),
+    unknown0: z.string(),
+    unknown1: z.string(),
+    unknown2: z.string()
+  }),
+  z.object({
+    type: z.literal("KSMUnsure10"),
+    runtime: z.string()
   })
 ]);
 
@@ -393,9 +440,70 @@ function _export(symbol: SigilKSM | SigilKSMCommand | SigilKSMExpression): unkno
     }
   }
 
+  if (symbol instanceof SigilKSMGetIndexInstruction) {
+    object.type = "KSMGetIndex";
+    object.table = _export(symbol.table);
+    object.variable = _export(symbol.variable);
+    object.occurence = _export(symbol.occurence);
+
+    return object;
+  }
+
   if (symbol instanceof SigilKSMReadTableLengthInstruction) {
     object.type = "KSMReadTableLength";
     object.table = _export(symbol.table);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure9Instruction) {
+    object.type = "KSMUnsure9";
+    object.unknown0 = _export(symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure6Instruction) {
+    object.type = "KSMUnsure6";
+    object.unknown0 = _export(symbol.unknown0);
+    object.unknown1 = _export(symbol.unknown1);
+    object.unknown2 = _export(symbol.unknown2);
+    object.unknown3 = _export(symbol.unknown3);
+    object.unknown4 = _export(symbol.unknown4);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure7Instruction) {
+    object.type = "KSMUnsure7";
+    object.unknown0 = _export(symbol.unknown0);
+    object.unknown1 = _export(symbol.unknown1);
+    object.unknown2 = _export(symbol.unknown2);
+    object.unknown3 = _export(symbol.unknown3);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure8Instruction) {
+    object.type = "KSMUnsure8";
+    object.unknown0 = _export(symbol.unknown0);
+    object.unknown1 = _export(symbol.unknown1);
+    object.unknown2 = _export(symbol.unknown2);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure11Instruction) {
+    object.type = "KSMUnsure11";
+    object.unknown0 = _export(symbol.unknown0);
+    object.unknown1 = _export(symbol.unknown1);
+
+    return object;
+  }
+
+  if (symbol instanceof SigilKSMUnsure10Instruction) {
+    object.type = "KSMUnsure10";
+    object.runtime = _export(symbol.runtime);
 
     return object;
   }
@@ -766,7 +874,6 @@ function _import(
       object.variables.set(_variable.id, _variable);
     }
 
-
     for (const ta of symbol.tables) {
       const table = new SigilKSMTable();
 
@@ -853,6 +960,71 @@ function _import(
 
   if (typeof symbol === "string") {
     return _resolve(fn, script, symbol);
+  }
+
+  if (symbol.type === "KSMGetIndex") {
+    const object = new SigilKSMGetIndexInstruction();
+
+    object.table = <SigilKSMTable>_import(fn, script, symbol.table);
+    object.variable = <SigilKSMVariable>_import(fn, script, symbol.variable);
+    object.occurence = <SigilKSMVariable>_import(fn, script, symbol.occurence);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure11") {
+    const object = new SigilKSMUnsure11Instruction();
+    object.unknown1 = <SigilKSMTable>_import(fn, script, symbol.unknown1);
+    object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure10") {
+    const object = new SigilKSMUnsure10Instruction();
+    object.runtime = <SigilKSMVariable>_import(fn, script, symbol.runtime);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure9") {
+    const object = new SigilKSMUnsure9Instruction();
+    object.unknown0 = <SigilKSMExpression>_import(fn, script, symbol.unknown0);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure6") {
+    const object = new SigilKSMUnsure6Instruction();
+
+    object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
+    object.unknown1 = <SigilKSMVariable>_import(fn, script, symbol.unknown1);
+    object.unknown2 = <SigilKSMVariable>_import(fn, script, symbol.unknown2);
+    object.unknown3 = <SigilKSMVariable>_import(fn, script, symbol.unknown3);
+    object.unknown4 = <SigilKSMVariable>_import(fn, script, symbol.unknown4);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure7") {
+    const object = new SigilKSMUnsure7Instruction();
+
+    object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
+    object.unknown1 = <SigilKSMVariable>_import(fn, script, symbol.unknown1);
+    object.unknown2 = <SigilKSMVariable>_import(fn, script, symbol.unknown2);
+    object.unknown3 = <SigilKSMVariable>_import(fn, script, symbol.unknown3);
+
+    return object;
+  }
+
+  if (symbol.type === "KSMUnsure8") {
+    const object = new SigilKSMUnsure8Instruction();
+
+    object.unknown0 = <SigilKSMVariable>_import(fn, script, symbol.unknown0);
+    object.unknown1 = <SigilKSMVariable>_import(fn, script, symbol.unknown1);
+    object.unknown2 = <SigilKSMVariable>_import(fn, script, symbol.unknown2);
+
+    return object;
   }
 
   if (symbol.type === "KSMUnsure2") {
@@ -1035,15 +1207,22 @@ function _import(
     object.callee = <SigilKSMFunction>_resolve(fn, script, symbol.callee);
 
     for (const g of symbol.give) {
-      object.give.push(
-        <SigilKSMVariable>(
-          _resolve(
-            object.callee instanceof KSMFunction ? object.callee : fn,
-            script,
-            g
+      // TODO: this fucking sucks.
+      // try first with callee's scope
+      // then caller's scope
+      try {
+        object.give.push(
+          <SigilKSMVariable>(
+            _resolve(
+              object.callee instanceof KSMFunction ? object.callee : fn,
+              script,
+              g
+            )
           )
-        )
-      );
+        );
+      } catch {
+        object.give.push(<SigilKSMVariable>_resolve(fn, script, g));
+      }
     }
 
     for (const t of symbol.take) {
